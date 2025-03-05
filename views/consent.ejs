@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authorization - OAuth2 Server</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<h1>Authorize Application</h1>
+
+<p>
+    <strong><%= client.name %></strong> is requesting access to your Easypanel account.
+</p>
+
+<% if (scopes && scopes.length > 0) { %>
+    <p>This application wants to:</p>
+    <ul>
+        <% scopes.forEach(function(scope) { %>
+            <li>
+                <% if (scope === 'profile') { %>
+                    Access your profile information
+                <% } else if (scope === 'email') { %>
+                    Access your email address
+                <% } else { %>
+                    <%= scope %>
+                <% } %>
+            </li>
+        <% }); %>
+    </ul>
+<% } %>
+
+<form method="POST" action="/oauth/consent">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+    <input type="hidden" name="client_id" value="<%= client.id %>">
+    <input type="hidden" name="redirect_uri" value="<%= client.redirectUris[0] %>">
+    <input type="hidden" name="scopes" value="<%= scopes.join(',') %>">
+
+    <div style="margin-top: 20px;">
+        <button type="submit" name="approved" value="true">Allow</button>
+        <button type="submit" name="approved" value="false">Deny</button>
+    </div>
+</form>
+</body>
+</html>
