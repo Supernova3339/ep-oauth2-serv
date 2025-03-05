@@ -8,7 +8,16 @@ import * as oauth from '../auth/oauth';
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
     if (!req.session.user) {
         // Store the original URL for redirection after login
-        req.session.returnTo = req.originalUrl;
+        if (req.method === 'GET') {
+            // Only store GET requests as returnTo URLs
+            req.session.returnTo = req.originalUrl;
+        } else if (req.originalUrl === '/device/verify' && req.method === 'POST') {
+            // Special case for device verification to redirect back to the device page
+            // Store user_code if available
+            const userCode = req.body.user_code;
+            const userCodeParam = userCode ? `?user_code=${userCode}` : '';
+            req.session.returnTo = `/device${userCodeParam}`;
+        }
         return res.redirect('/login');
     }
 

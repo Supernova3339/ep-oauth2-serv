@@ -28,11 +28,12 @@ interface DeviceAuthorizationResponse {
     interval: number;
 }
 
-interface TokenResponse {
+export interface TokenResponse {
     access_token: string;
     token_type: string;
     expires_in: number;
     refresh_token: string;
+    id_token?: string; // OpenID Connect ID token
     scope: string;
 }
 
@@ -100,10 +101,13 @@ async function main(): Promise<void> {
 
 // Request device code
 async function requestDeviceCode(): Promise<DeviceAuthorizationResponse> {
-    const response = await axios.post<DeviceAuthorizationResponse>(`${SERVER_URL}/oauth/device`, {
-        client_id: CLIENT_ID,
-        scope: 'profile email'
-    });
+    const response = await axios.post<DeviceAuthorizationResponse>(
+        `${SERVER_URL}/oauth/device`,
+        {
+            client_id: CLIENT_ID,
+            scope: 'profile email'
+        }
+    );
 
     return response.data;
 }
@@ -116,12 +120,15 @@ async function pollForToken(deviceCode: string, interval: number): Promise<Token
     // Poll until we get a token or an error
     while (true) {
         try {
-            const response = await axios.post<TokenResponse>(`${SERVER_URL}/oauth/token`, {
-                client_id: CLIENT_ID,
-                client_secret: CLIENT_SECRET,
-                grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-                device_code: deviceCode
-            });
+            const response = await axios.post<TokenResponse>(
+                `${SERVER_URL}/oauth/token`,
+                {
+                    client_id: CLIENT_ID,
+                    client_secret: CLIENT_SECRET,
+                    grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+                    device_code: deviceCode
+                }
+            );
 
             // If we get here, we have a token
             return response.data;
@@ -149,7 +156,9 @@ async function pollForToken(deviceCode: string, interval: number): Promise<Token
                         throw new Error('The user denied the authorization request.');
 
                     default:
-                        throw new Error(`Authentication error: ${errorData.error}: ${errorData.error_description || ''}`);
+                        throw new Error(
+                            `Authentication error: ${errorData.error}: ${errorData.error_description || ''}`
+                        );
                 }
             } else {
                 // Unexpected error
@@ -164,11 +173,14 @@ async function pollForToken(deviceCode: string, interval: number): Promise<Token
 
 // Get user info
 async function getUserInfo(accessToken: string): Promise<UserInfoResponse> {
-    const response = await axios.get<UserInfoResponse>(`${SERVER_URL}/oauth/userinfo`, {
-        headers: {
-            'Authorization': `Bearer ${accessToken}`
+    const response = await axios.get<UserInfoResponse>(
+        `${SERVER_URL}/oauth/userinfo`,
+        {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
         }
-    });
+    );
 
     return response.data;
 }

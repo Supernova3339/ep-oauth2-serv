@@ -8,6 +8,7 @@ declare module 'express-session' {
             redirect_uri: string | any;
             scope: string | any;
             state: string | any;
+            nonce?: string | any; // Add nonce for OpenID Connect
         };
         csrfToken?: string;
         twoFactorAuth?: {
@@ -27,6 +28,7 @@ export interface Client {
     redirectUris: string[];
     allowedScopes: string[];
     createdAt: Date;
+    persistent?: boolean; // Whether the client should be saved to disk
 }
 
 // Authorization Code
@@ -37,6 +39,7 @@ export interface AuthorizationCode {
     redirectUri: string;
     expiresAt: Date;
     scopes: string[];
+    nonce?: string; // OpenID Connect needs this
 }
 
 // Access Token

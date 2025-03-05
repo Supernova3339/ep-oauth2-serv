@@ -4,9 +4,10 @@ import { csrfProtection, requireAuth, requireApiAuth } from '../middleware';
 import * as storage from '../storage/memory';
 import * as oauth from '../auth/oauth';
 import * as easypanel from '../auth/easypanel';
-import { ACCESS_TOKEN_EXPIRY } from '../config';
+import {ACCESS_TOKEN_EXPIRY, API_TOKEN} from '../config';
 import * as deviceStorage from '../storage/device';
 import crypto from 'crypto';
+import {DeviceCodeStatus} from "../storage/device";
 
 const router = Router();
 
@@ -34,22 +35,22 @@ router.get('/.well-known/openid-configuration', (req: Request, res: Response) =>
 });
 
 // JWKS (JSON Web Key Set) endpoint
-router.get('/oauth/jwks', (req: Request, res: Response) => {
-    // In a production environment, this would return actual keys
-    // For this implementation, we'll return a minimal JWKS structure
-    res.json({
-        keys: [
-            {
-                kty: "RSA",
-                use: "sig",
-                kid: "default-signing-key",
-                alg: "RS256",
-                // These values would typically be derived from real keys
-                n: "sample-modulus-value",
-                e: "AQAB"
-            }
-        ]
-    });
+router.get('/oauth/jwks', async (req: Request, res: Response) => {
+    try {
+        // Get the public key in JWK format
+        const jwk = await oauth.getPublicJwk();
+
+        // Return the JWKS
+        res.json({
+            keys: [jwk]
+        });
+    } catch (error) {
+        console.error('Error serving JWKS:', error);
+        res.status(500).json({
+            error: 'server_error',
+            error_description: 'An error occurred while generating the JWKS'
+        });
+    }
 });
 
 // Token Revocation endpoint (RFC 7009)
@@ -158,6 +159,14 @@ router.post('/oauth/device', async (req: Request, res: Response) => {
 router.get('/device', csrfProtection, (req: Request, res: Response) => {
     const userCode = req.query.user_code as string | undefined;
 
+    // If user is not authenticated, store return URL and redirect to login
+    if (!req.session.user) {
+        // Store the original URL for redirection after login
+        const userCodeParam = userCode ? `?user_code=${userCode}` : '';
+        req.session.returnTo = `/device${userCodeParam}`;
+        return res.redirect('/login');
+    }
+
     // Format user code if provided (add hyphen if missing)
     let formattedUserCode = userCode || '';
     if (formattedUserCode && formattedUserCode.length === 8 && !formattedUserCode.includes('-')) {
@@ -171,6 +180,7 @@ router.get('/device', csrfProtection, (req: Request, res: Response) => {
         error: null
     });
 });
+
 
 // Device verification form submission
 router.post('/device/verify', csrfProtection, requireAuth, (req: Request, res: Response) => {
@@ -358,7 +368,8 @@ router.post('/oauth/consent', csrfProtection, requireAuth, async (req: Request, 
         client_id,
         req.session.user.id,
         redirect_uri,
-        scopeArray
+        scopeArray,
+        authRequest.nonce as string | undefined // Pass nonce to auth code
     );
 
     // Add the code to the redirect URL
@@ -384,7 +395,8 @@ router.post('/oauth/token', async (req: Request, res: Response) => {
         redirect_uri,
         client_id,
         client_secret,
-        refresh_token
+        refresh_token,
+        device_code
     } = req.body as {
         grant_type: string;
         code?: string;
@@ -392,6 +404,7 @@ router.post('/oauth/token', async (req: Request, res: Response) => {
         client_id: string;
         client_secret: string;
         refresh_token?: string;
+        device_code?: string;
     };
 
     // Validate client credentials
@@ -421,20 +434,22 @@ router.post('/oauth/token', async (req: Request, res: Response) => {
             });
         }
 
-        // Generate tokens
-        const token = oauth.generateTokens(client_id, authCode.userId, authCode.scopes);
+        try {
+            // Generate tokens
+            const token = await oauth.generateTokens(client_id, authCode.userId, authCode.scopes, authCode);
 
-        // Remove the used authorization code
-        storage.removeAuthorizationCode(code);
+            // Remove the used authorization code
+            storage.removeAuthorizationCode(code);
 
-        // Return the tokens
-        return res.json({
-            access_token: token.accessToken,
-            token_type: 'Bearer',
-            expires_in: ACCESS_TOKEN_EXPIRY,
-            refresh_token: token.refreshToken,
-            scope: token.scopes.join(' '),
-        });
+            // Return the tokens
+            return res.json(token);
+        } catch (error) {
+            console.error('Error generating tokens:', error);
+            return res.status(500).json({
+                error: 'server_error',
+                error_description: 'An error occurred while generating tokens',
+            });
+        }
     } else if (grant_type === 'refresh_token') {
         // Make sure refresh token is provided
         if (!refresh_token) {
@@ -444,27 +459,27 @@ router.post('/oauth/token', async (req: Request, res: Response) => {
             });
         }
 
-        // Refresh the token
-        const token = oauth.refreshToken(refresh_token, client_id);
-        if (!token) {
-            return res.status(400).json({
-                error: 'invalid_grant',
-                error_description: 'Invalid refresh token',
+        try {
+            // Refresh the token
+            const token = await oauth.refreshToken(refresh_token, client_id);
+            if (!token) {
+                return res.status(400).json({
+                    error: 'invalid_grant',
+                    error_description: 'Invalid refresh token',
+                });
+            }
+
+            // Return the new tokens
+            return res.json(token);
+        } catch (error) {
+            console.error('Error refreshing token:', error);
+            return res.status(500).json({
+                error: 'server_error',
+                error_description: 'An error occurred while refreshing token',
             });
         }
-
-        // Return the new tokens
-        return res.json({
-            access_token: token.accessToken,
-            token_type: 'Bearer',
-            expires_in: ACCESS_TOKEN_EXPIRY,
-            refresh_token: token.refreshToken,
-            scope: token.scopes.join(' '),
-        });
     } else if (grant_type === 'urn:ietf:params:oauth:grant-type:device_code') {
         // Device Authorization Grant
-        const { device_code } = req.body as { device_code: string };
-
         if (!device_code) {
             return res.status(400).json({
                 error: 'invalid_request',
@@ -472,12 +487,24 @@ router.post('/oauth/token', async (req: Request, res: Response) => {
             });
         }
 
-        // In a real implementation, you would check the device code against stored codes
-        // For this demo, we'll always return an error that the authorization is pending
-        return res.status(400).json({
-            error: 'authorization_pending',
-            error_description: 'The user has not yet completed the authorization',
-        });
+        try {
+            // Process the device code token request
+            const result = await oauth.processDeviceCodeTokenRequest(device_code, client_id);
+
+            // Check if it's an error response
+            if ('error' in result) {
+                return res.status(400).json(result);
+            }
+
+            // Return the tokens
+            return res.json(result);
+        } catch (error) {
+            console.error('Error processing device code:', error);
+            return res.status(500).json({
+                error: 'server_error',
+                error_description: 'An error occurred while processing device code',
+            });
+        }
     } else {
         return res.status(400).json({
             error: 'unsupported_grant_type',
@@ -514,7 +541,7 @@ router.get('/oauth/userinfo', requireApiAuth, async (req: Request, res: Response
     const token = res.locals.token;
 
     // Get user info from Easypanel (using admin token in a real implementation)
-    const user = await easypanel.getUserById('admin-token', token.userId);
+    const user = await easypanel.getUserById(API_TOKEN, token.userId);
 
     if (!user) {
         return res.status(404).json({

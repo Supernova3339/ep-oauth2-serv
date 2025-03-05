@@ -8,7 +8,19 @@ const router = Router();
 router.get('/login', csrfProtection, (req: Request, res: Response) => {
     // If user is already logged in, redirect to home
     if (req.session.user) {
+        // Check if there's a returnTo URL
+        if (req.session.returnTo) {
+            const returnTo = req.session.returnTo;
+            delete req.session.returnTo;
+            return res.redirect(returnTo);
+        }
         return res.redirect('/');
+    }
+
+    // Store the referrer URL if it's from the device page
+    const referer = req.get('Referrer');
+    if (referer && referer.includes('/device') && !req.session.returnTo) {
+        req.session.returnTo = '/device';
     }
 
     res.render('login', {

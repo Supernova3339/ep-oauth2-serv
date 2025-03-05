@@ -8,6 +8,7 @@ export const ACCESS_TOKEN_EXPIRY = 60 * 60; // 1 hour in seconds
 export const REFRESH_TOKEN_EXPIRY = 30 * 24 * 60 * 60; // 30 days in seconds
 export const AUTH_CODE_EXPIRY = 10 * 60; // 10 minutes in seconds
 export const NODE_ENV = process.env.NODE_ENV || 'development';
+export const API_TOKEN = process.env.API_TOKEN || ''; // Easypanel API Token
 
 // Config validation
 if (NODE_ENV === 'production' && SESSION_SECRET === 'oauth2-server-secret') {
@@ -21,5 +22,6 @@ export default {
     ACCESS_TOKEN_EXPIRY,
     REFRESH_TOKEN_EXPIRY,
     AUTH_CODE_EXPIRY,
-    NODE_ENV
+    NODE_ENV,
+    API_TOKEN
 };

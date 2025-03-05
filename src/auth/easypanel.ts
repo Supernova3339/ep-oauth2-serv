@@ -170,8 +170,9 @@ export async function listUsers(token: string): Promise<EasypanelUser[] | null> 
         });
 
         if (response.status === 200 &&
-            response.data?.result?.data?.json) {
-            return response.data.result.data.json;
+            response.data?.result?.data?.json?.users) {
+            // Return the users array from the API response
+            return response.data.result.data.json.users;
         }
 
         return null;
@@ -192,7 +193,7 @@ export async function getUserById(token: string, userId: string): Promise<Easypa
     try {
         const users = await listUsers(token);
 
-        if (users) {
+        if (users && Array.isArray(users)) {
             return users.find(user => user.id === userId) || null;
         }
 

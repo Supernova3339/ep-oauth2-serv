@@ -1,8 +1,10 @@
 import crypto from 'crypto';
+import * as jose from 'jose';
 import {
     AuthorizationCode,
     Token,
-    Client
+    Client,
+    EasypanelUser
 } from '../types';
 import {
     ACCESS_TOKEN_EXPIRY,
@@ -12,6 +14,49 @@ import {
 import * as storage from '../storage/memory';
 import * as deviceStorage from '../storage/device';
 import { DeviceCodeStatus } from '../storage/device';
+import * as easypanel from '../auth/easypanel';
+
+// Generate RSA key pair for signing JWTs
+// In production, this should be loaded from secure storage
+let privateKey: jose.KeyLike | null = null;
+let publicKey: jose.KeyLike | null = null;
+
+// Initialize keys
+async function initKeys() {
+    if (!privateKey || !publicKey) {
+        // Generate a new RSA key pair
+        const { privateKey: privKey, publicKey: pubKey } = await jose.generateKeyPair('RS256');
+        privateKey = privKey;
+        publicKey = pubKey;
+
+        // In production, you would save these keys securely
+        console.log('Generated new RSA key pair for JWT signing');
+    }
+}
+
+// Initialize keys when this module is loaded
+initKeys().catch(err => {
+    console.error('Failed to initialize JWT keys:', err);
+    process.exit(1);
+});
+
+// Export the public key for JWKS endpoint
+export async function getPublicJwk(): Promise<jose.JWK> {
+    if (!publicKey) {
+        await initKeys();
+    }
+
+    // Convert the public key to JWK format
+    const jwk = await jose.exportJWK(publicKey!);
+
+    // Add key ID and use
+    return {
+        ...jwk,
+        kid: 'oauth-server-key-1',
+        use: 'sig',
+        alg: 'RS256'
+    };
+}
 
 /**
  * Generates an authorization code
@@ -20,15 +65,19 @@ export function generateAuthorizationCode(
     clientId: string,
     userId: string,
     redirectUri: string,
-    scopes: string[]
+    scopes: string[],
+    nonce?: string
 ): AuthorizationCode {
-    return storage.storeAuthorizationCode(
+    const authCode = storage.storeAuthorizationCode(
         clientId,
         userId,
         redirectUri,
         scopes,
-        AUTH_CODE_EXPIRY
+        AUTH_CODE_EXPIRY,
+        nonce
     );
+
+    return authCode;
 }
 
 /**
@@ -56,25 +105,112 @@ export function validateAuthorizationCode(
 }
 
 /**
- * Generates tokens from an authorization code
+ * Generates tokens including OpenID Connect ID token if needed
  */
-export function generateTokens(
+export async function generateTokens(
     clientId: string,
     userId: string,
-    scopes: string[]
-): Token {
-    return storage.storeToken(
+    scopes: string[],
+    authCode?: AuthorizationCode
+): Promise<TokenResponse> {
+    // Generate basic token (access and refresh)
+    const token = storage.storeToken(
         clientId,
         userId,
         scopes,
         ACCESS_TOKEN_EXPIRY
     );
+
+    // Check if this is an OpenID Connect request
+    const isOpenIdConnect = scopes.includes('openid');
+    let idToken = undefined;
+
+    if (isOpenIdConnect) {
+        try {
+            // Get user information for claims
+            const user = await easypanel.getUserById('admin-token', userId);
+
+            if (user) {
+                // Generate ID token
+                idToken = await generateIdToken(
+                    clientId,
+                    userId,
+                    scopes,
+                    user,
+                    authCode?.nonce
+                );
+            }
+        } catch (error) {
+            console.error('Error generating ID token:', error);
+        }
+    }
+
+    return {
+        access_token: token.accessToken,
+        token_type: 'Bearer',
+        expires_in: ACCESS_TOKEN_EXPIRY,
+        refresh_token: token.refreshToken,
+        scope: scopes.join(' '),
+        id_token: idToken
+    };
+}
+
+/**
+ * Generate an OpenID Connect ID token
+ */
+async function generateIdToken(
+    clientId: string,
+    userId: string,
+    scopes: string[],
+    user: EasypanelUser,
+    nonce?: string
+): Promise<string> {
+    if (!privateKey) {
+        await initKeys();
+    }
+
+    // Current time in seconds
+    const now = Math.floor(Date.now() / 1000);
+
+    // Build claims based on scopes
+    const claims: Record<string, any> = {
+        // Required claims
+        iss: `http://localhost:3000`, // Issuer URL (should be configurable)
+        sub: userId,                   // Subject (user ID)
+        aud: clientId,                 // Audience (client ID)
+        exp: now + ACCESS_TOKEN_EXPIRY, // Expiration time
+        iat: now,                      // Issued at time
+    };
+
+    // Add nonce if provided (for replay prevention)
+    if (nonce) {
+        claims.nonce = nonce;
+    }
+
+    // Add profile claims if scope includes 'profile'
+    if (scopes.includes('profile')) {
+        claims.name = user.email; // Using email as name since we don't have a separate name field
+        // Add other profile claims as available
+    }
+
+    // Add email claims if scope includes 'email'
+    if (scopes.includes('email')) {
+        claims.email = user.email;
+        claims.email_verified = true; // Assuming emails are verified
+    }
+
+    // Generate the JWT
+    const jwt = await new jose.SignJWT(claims)
+        .setProtectedHeader({ alg: 'RS256', kid: 'oauth-server-key-1' })
+        .sign(privateKey!);
+
+    return jwt;
 }
 
 /**
  * Refreshes an access token
  */
-export function refreshToken(refreshToken: string, clientId: string): Token | null {
+export async function refreshToken(refreshToken: string, clientId: string): Promise<TokenResponse | null> {
     const oldToken = storage.getTokenByRefreshToken(refreshToken);
 
     if (!oldToken || oldToken.clientId !== clientId) {
@@ -82,11 +218,10 @@ export function refreshToken(refreshToken: string, clientId: string): Token | nu
     }
 
     // Generate new tokens
-    const newToken = storage.storeToken(
+    const response = await generateTokens(
         oldToken.clientId,
         oldToken.userId,
-        oldToken.scopes,
-        ACCESS_TOKEN_EXPIRY
+        oldToken.scopes
     );
 
     // Remove old token
@@ -94,7 +229,7 @@ export function refreshToken(refreshToken: string, clientId: string): Token | nu
         storage.removeToken(oldToken.accessToken);
     }
 
-    return newToken;
+    return response;
 }
 
 /**
@@ -134,7 +269,28 @@ export function validateRedirectUri(client: Client, redirectUri: string): boolea
  * Filters scopes based on what's allowed for the client
  */
 export function filterScopes(client: Client, requestedScopes: string[]): string[] {
-    return requestedScopes.filter(scope => client.allowedScopes.includes(scope));
+    // For OpenID Connect, we need to ensure 'openid' scope is included
+    // when other openid-related scopes are requested
+    if (requestedScopes.includes('profile') || requestedScopes.includes('email')) {
+        if (!requestedScopes.includes('openid')) {
+            requestedScopes.push('openid');
+        }
+    }
+
+    // Filter scopes based on what's allowed for the client
+    return requestedScopes.filter(scope => {
+        // If the client is specifically allowed this scope
+        if (client.allowedScopes.includes(scope)) {
+            return true;
+        }
+
+        // Special case: if client allows 'openid' scope, implicitly allow 'profile' and 'email'
+        if ((scope === 'profile' || scope === 'email') && client.allowedScopes.includes('openid')) {
+            return true;
+        }
+
+        return false;
+    });
 }
 
 /**
@@ -195,10 +351,10 @@ export function getDeviceAuthorization(deviceCode: string): DeviceAuthorization 
 /**
  * Process token request for device authorization grant
  */
-export function processDeviceCodeTokenRequest(
+export async function processDeviceCodeTokenRequest(
     deviceCode: string,
     clientId: string
-): Token | DeviceCodeError {
+): Promise<TokenResponse | DeviceCodeError> {
     const deviceAuth = deviceStorage.getDeviceCode(deviceCode);
 
     // Check if device code exists
@@ -239,11 +395,10 @@ export function processDeviceCodeTokenRequest(
     }
 
     // Generate tokens
-    return storage.storeToken(
+    return await generateTokens(
         deviceAuth.clientId,
         deviceAuth.userId!,
-        deviceAuth.scopes,
-        ACCESS_TOKEN_EXPIRY
+        deviceAuth.scopes
     );
 }
 
@@ -269,4 +424,13 @@ export interface DeviceAuthorization {
     userId?: string;
     status: DeviceCodeStatus;
     expiresAt: Date;
+}
+
+export interface TokenResponse {
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+    refresh_token: string;
+    scope: string;
+    id_token?: string; // OpenID Connect ID token
 }

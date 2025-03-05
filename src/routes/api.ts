@@ -12,6 +12,7 @@ router.get('/api/clients', requireAuth, requireAdmin, (req: Request, res: Respon
         redirectUris: client.redirectUris,
         allowedScopes: client.allowedScopes,
         createdAt: client.createdAt,
+        persistent: client.persistent || false
     }));
 
     return res.json({ success: true, clients });
@@ -36,16 +37,18 @@ router.get('/api/clients/:id', requireAuth, requireAdmin, (req: Request, res: Re
             redirectUris: client.redirectUris,
             allowedScopes: client.allowedScopes,
             createdAt: client.createdAt,
+            persistent: client.persistent || false
         }
     });
 });
 
 // Create a new OAuth client
 router.post('/api/clients', requireAuth, requireAdmin, (req: Request, res: Response) => {
-    const { name, redirectUris, allowedScopes } = req.body as {
+    const { name, redirectUris, allowedScopes, persistent } = req.body as {
         name: string;
         redirectUris: string[];
         allowedScopes: string[];
+        persistent?: boolean;
     };
 
     if (!name || !Array.isArray(redirectUris) || !Array.isArray(allowedScopes)) {
@@ -55,7 +58,12 @@ router.post('/api/clients', requireAuth, requireAdmin, (req: Request, res: Respo
         });
     }
 
-    const client = storage.createClient(name, redirectUris, allowedScopes);
+    const client = storage.createClient(
+        name,
+        redirectUris,
+        allowedScopes,
+        !!persistent // Convert to boolean
+    );
 
     return res.status(201).json({
         success: true,
@@ -66,6 +74,7 @@ router.post('/api/clients', requireAuth, requireAdmin, (req: Request, res: Respo
             redirectUris: client.redirectUris,
             allowedScopes: client.allowedScopes,
             createdAt: client.createdAt,
+            persistent: client.persistent || false
         }
     });
 });
@@ -107,28 +116,37 @@ router.put('/api/clients/:id', requireAuth, requireAdmin, (req: Request, res: Re
         });
     }
 
-    const { name, redirectUris, allowedScopes } = req.body as {
+    const { name, redirectUris, allowedScopes, persistent } = req.body as {
         name?: string;
         redirectUris?: string[];
         allowedScopes?: string[];
+        persistent?: boolean;
     };
 
-    // Update client properties
-    if (name) client.name = name;
-    if (redirectUris) client.redirectUris = redirectUris;
-    if (allowedScopes) client.allowedScopes = allowedScopes;
+    // Update client using the new updateClient function
+    const updatedClient = storage.updateClient(client.id, {
+        name,
+        redirectUris,
+        allowedScopes,
+        persistent: persistent !== undefined ? persistent : client.persistent
+    });
 
-    // Store updated client
-    storage.clients.set(client.id, client);
+    if (!updatedClient) {
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to update client'
+        });
+    }
 
     return res.json({
         success: true,
         client: {
-            id: client.id,
-            name: client.name,
-            redirectUris: client.redirectUris,
-            allowedScopes: client.allowedScopes,
-            createdAt: client.createdAt,
+            id: updatedClient.id,
+            name: updatedClient.name,
+            redirectUris: updatedClient.redirectUris,
+            allowedScopes: updatedClient.allowedScopes,
+            createdAt: updatedClient.createdAt,
+            persistent: updatedClient.persistent || false
         }
     });
 });
