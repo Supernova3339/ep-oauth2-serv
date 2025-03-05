@@ -1,13 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { URL } from 'url';
 import { csrfProtection, requireAuth, requireApiAuth } from '../middleware';
-import * as storage from '../storage/memory';
+import * as storage from '../storage/lmdb';
 import * as oauth from '../auth/oauth';
 import * as easypanel from '../auth/easypanel';
-import {ACCESS_TOKEN_EXPIRY, API_TOKEN} from '../config';
-import * as deviceStorage from '../storage/device';
-import crypto from 'crypto';
-import {DeviceCodeStatus} from "../storage/device";
+import {API_TOKEN} from '../config';
+import * as deviceStorage from '../storage/device-lmdb';
 
 const router = Router();
 
@@ -97,11 +95,10 @@ router.post('/oauth/revoke', async (req: Request, res: Response) => {
 
     if (token_type_hint === 'refresh_token' || !token_type_hint) {
         // Check if it's a refresh token
-        const accessToken = storage.refreshTokens.get(token);
+        const accessToken = storage.getTokenByRefreshToken(token);
         if (accessToken) {
             // Remove the tokens
-            storage.refreshTokens.delete(token);
-            storage.removeToken(accessToken);
+            storage.removeToken(accessToken.accessToken);
             revoked = true;
         }
     }

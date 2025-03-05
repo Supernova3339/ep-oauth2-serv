@@ -1,0 +1,61 @@
+[
+  {
+    "id": "test-client",
+    "name": "Test Client",
+    "secret": "test-secret",
+    "redirectUris": [
+      "http://localhost:8080/callback"
+    ],
+    "allowedScopes": [
+      "profile",
+      "email"
+    ],
+    "createdAt": "2025-03-05T00:47:29.323Z",
+    "persistent": true
+  },
+  {
+    "id": "f4d93b59-08ec-490a-b9ab-563aa64cc916",
+    "name": "Updated Mobile App",
+    "secret": "3nlj3ztx6mfgnhrchpo982s2cdny24m4",
+    "redirectUris": [
+      "com.example.app://callback",
+      "com.example.app://login-callback"
+    ],
+    "allowedScopes": [
+      "profile",
+      "email",
+      "openid",
+      "offline_access"
+    ],
+    "createdAt": "2025-03-05T00:47:29.325Z",
+    "persistent": true
+  },
+  {
+    "id": "2d0e56b9-49db-48db-be3b-73776f4b5248",
+    "name": "Temporary Client",
+    "secret": "wdgxa3qlifwy4jpmgpafoqb4pax811v6",
+    "redirectUris": [
+      "http://localhost:3001/callback"
+    ],
+    "allowedScopes": [
+      "profile"
+    ],
+    "createdAt": "2025-03-05T00:47:29.333Z",
+    "persistent": false
+  },
+  {
+    "id": "openid-example-client",
+    "name": "OpenID Connect Example Client",
+    "secret": "openid-example-secret",
+    "redirectUris": [
+      "http://localhost:8080/callback"
+    ],
+    "allowedScopes": [
+      "openid",
+      "profile",
+      "email"
+    ],
+    "createdAt": "2025-03-05T01:07:20.600Z",
+    "persistent": true
+  }
+]

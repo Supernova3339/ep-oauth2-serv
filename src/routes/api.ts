@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth, requireAdmin } from '../middleware';
-import * as storage from '../storage/memory';
+// Update to use LMDB storage
+import * as storage from '../storage/lmdb';
 
 const router = Router();
 

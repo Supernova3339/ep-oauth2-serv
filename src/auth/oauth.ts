@@ -11,9 +11,10 @@ import {
     REFRESH_TOKEN_EXPIRY,
     AUTH_CODE_EXPIRY
 } from '../config';
-import * as storage from '../storage/memory';
-import * as deviceStorage from '../storage/device';
-import { DeviceCodeStatus } from '../storage/device';
+// Import LMDB storage instead of memory storage
+import * as storage from '../storage/lmdb';
+import * as deviceStorage from '../storage/device-lmdb';
+import { DeviceCodeStatus } from '../storage/device-lmdb';
 import * as easypanel from '../auth/easypanel';
 
 // Generate RSA key pair for signing JWTs
