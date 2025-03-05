@@ -230,6 +230,10 @@ export function storeAuthorizationCode(
         nonce // Store the nonce if provided
     };
     authorizationCodes.set(code, authCode);
+
+    console.log(`Stored authorization code ${code} for client ${clientId} and user ${userId}`);
+    console.log(`Auth code will expire at ${authCode.expiresAt}`);
+
     return authCode;
 }
 

@@ -244,8 +244,19 @@ router.get('/oauth/authorize', csrfProtection, async (req: Request, res: Respons
         client_id,
         redirect_uri,
         scope,
-        state
+        state,
+        nonce
     } = req.query;
+
+    console.log('[SERVER] Authorization request received:', {
+        response_type,
+        client_id,
+        redirect_uri,
+        scope,
+        state: state ? `${state.toString().substring(0, 10)}...` : undefined,
+        nonce: nonce ? 'present' : 'not present',
+        sessionID: req.sessionID
+    });
 
     // Validate request parameters
     if (response_type !== 'code') {
@@ -281,18 +292,35 @@ router.get('/oauth/authorize', csrfProtection, async (req: Request, res: Respons
 
     // Check if user is authenticated
     if (!req.session.user) {
-        // Store the authorization request in the session
+        console.log('[SERVER] User not authenticated, storing auth request in session and redirecting to login');
+
+        // Store the COMPLETE authorization request in the session
         req.session.authRequest = {
-            response_type: response_type,
-            client_id: client_id,
-            redirect_uri: redirect_uri,
-            scope: scope,
-            state: state,
+            response_type: response_type as string,
+            client_id: client_id as string,
+            redirect_uri: redirect_uri as string,
+            scope: scope as string,
+            state: state as string,
+            nonce: nonce as string
         };
 
-        // Redirect to login page
-        return res.redirect('/login');
+        // Save session explicitly to ensure data is persisted
+        req.session.save((err) => {
+            if (err) {
+                console.error('[SERVER] Error saving session:', err);
+                return res.status(500).render('error', {
+                    error: 'server_error',
+                    error_description: 'Failed to store authorization request'
+                });
+            }
+
+            // Redirect to login page
+            return res.redirect('/login');
+        });
+        return;
     }
+
+    console.log('[SERVER] User authenticated, showing consent page');
 
     // User is authenticated, show consent page
     const requestedScopes = ((scope as string) || '').split(' ').filter(Boolean);
@@ -303,6 +331,14 @@ router.get('/oauth/authorize', csrfProtection, async (req: Request, res: Respons
         scopes: validScopes,
         user: req.session.user,
         csrfToken: req.session.csrfToken,
+        authRequest: {
+            response_type: response_type,
+            client_id: client_id,
+            redirect_uri: redirect_uri,
+            scope: scope,
+            state: state,
+            nonce: nonce
+        }
     });
 });
 
@@ -312,22 +348,17 @@ router.post('/oauth/consent', csrfProtection, requireAuth, async (req: Request, 
         client_id,
         redirect_uri,
         scopes,
-        approved
-    } = req.body as {
-        client_id: string;
-        redirect_uri: string;
-        scopes: string;
-        approved: string;
-    };
+        approved,
+        state,
+        nonce
+    } = req.body;
 
-    const authRequest = req.session.authRequest;
-
-    if (!authRequest) {
-        return res.status(400).render('error', {
-            error: 'invalid_request',
-            error_description: 'No authorization request found'
-        });
-    }
+    console.log('[SERVER] Consent decision received:', {
+        client_id,
+        approved,
+        state: state ? `${state.substring(0, 10)}...` : undefined,
+        nonce: nonce ? 'present' : 'not present'
+    });
 
     // Create the redirect URL for returning to the client
     const redirectUrl = new URL(redirect_uri);
@@ -335,11 +366,12 @@ router.post('/oauth/consent', csrfProtection, requireAuth, async (req: Request, 
     // Check if user approved the consent
     if (approved !== 'true') {
         // User denied consent
+        console.log('[SERVER] User denied consent');
         redirectUrl.searchParams.append('error', 'access_denied');
         redirectUrl.searchParams.append('error_description', 'The user denied the request');
 
-        if (authRequest.state) {
-            redirectUrl.searchParams.append('state', authRequest.state as string);
+        if (state) {
+            redirectUrl.searchParams.append('state', state);
         }
 
         return res.redirect(redirectUrl.toString());
@@ -364,26 +396,29 @@ router.post('/oauth/consent', csrfProtection, requireAuth, async (req: Request, 
 
     // Generate authorization code
     const scopeArray = scopes.split(',');
+    console.log('[SERVER] Generating authorization code with scopes:', scopeArray);
+
     const authCode = oauth.generateAuthorizationCode(
         client_id,
         req.session.user.id,
         redirect_uri,
         scopeArray,
-        authRequest.nonce as string | undefined // Pass nonce to auth code
+        nonce // Pass the nonce to be stored with the auth code
     );
+
+    console.log('[SERVER] Authorization code generated:', authCode.code.substring(0, 10) + '...');
 
     // Add the code to the redirect URL
     redirectUrl.searchParams.append('code', authCode.code);
 
     // Add state if provided
-    if (authRequest.state) {
-        redirectUrl.searchParams.append('state', authRequest.state as string);
+    if (state) {
+        console.log('[SERVER] Adding state to redirect:', state.substring(0, 10) + '...');
+        redirectUrl.searchParams.append('state', state);
     }
 
-    // Clear the auth request from session
-    delete req.session.authRequest;
-
     // Redirect back to the client
+    console.log('[SERVER] Redirecting to client:', redirectUrl.toString());
     return res.redirect(redirectUrl.toString());
 });
 
@@ -396,7 +431,10 @@ router.post('/oauth/token', async (req: Request, res: Response) => {
         client_id,
         client_secret,
         refresh_token,
-        device_code
+        device_code,
+        username,
+        password,
+        scope
     } = req.body as {
         grant_type: string;
         code?: string;
@@ -405,63 +443,101 @@ router.post('/oauth/token', async (req: Request, res: Response) => {
         client_secret: string;
         refresh_token?: string;
         device_code?: string;
+        username?: string;
+        password?: string;
+        scope?: string;
     };
 
+    console.log('[SERVER] Token request received:', {
+        grant_type,
+        client_id,
+        code: code ? `${code.substring(0, 10)}...` : undefined,
+        redirect_uri: redirect_uri || 'not provided',
+        has_refresh_token: !!refresh_token,
+        has_device_code: !!device_code
+    });
+
+    // Extract client credentials from Authorization header if not in body
+    let clientIdFromAuth = '';
+    let clientSecretFromAuth = '';
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Basic ')) {
+        try {
+            const base64Credentials = authHeader.split(' ')[1];
+            const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+            [clientIdFromAuth, clientSecretFromAuth] = credentials.split(':');
+
+            console.log('[SERVER] Client credentials extracted from Authorization header');
+        } catch (error) {
+            console.error('[SERVER] Error parsing Basic auth:', error);
+        }
+    }
+
+    // Use credentials from body or fallback to auth header
+    const finalClientId = client_id || clientIdFromAuth;
+    const finalClientSecret = client_secret || clientSecretFromAuth;
+
     // Validate client credentials
-    const client = oauth.validateClient(client_id, client_secret);
+    const client = oauth.validateClient(finalClientId, finalClientSecret);
     if (!client) {
+        console.log('[SERVER] Invalid client credentials');
         return res.status(401).json({
             error: 'invalid_client',
             error_description: 'Invalid client credentials',
         });
     }
 
-    if (grant_type === 'authorization_code') {
-        // Make sure required parameters are provided
-        if (!code || !redirect_uri) {
-            return res.status(400).json({
-                error: 'invalid_request',
-                error_description: 'Missing required parameters',
-            });
-        }
+    // Handle different grant types
+    try {
+        // 1. Authorization Code Grant
+        if (grant_type === 'authorization_code') {
+            if (!code || !redirect_uri) {
+                return res.status(400).json({
+                    error: 'invalid_request',
+                    error_description: 'Missing required parameters: code and redirect_uri',
+                });
+            }
 
-        // Validate authorization code
-        const authCode = oauth.validateAuthorizationCode(code, client_id, redirect_uri);
-        if (!authCode) {
-            return res.status(400).json({
-                error: 'invalid_grant',
-                error_description: 'Invalid authorization code',
-            });
-        }
+            // Validate authorization code
+            console.log('[SERVER] Validating authorization code');
+            const authCode = oauth.validateAuthorizationCode(code, finalClientId, redirect_uri);
+            if (!authCode) {
+                console.log('[SERVER] Invalid authorization code');
+                return res.status(400).json({
+                    error: 'invalid_grant',
+                    error_description: 'Invalid authorization code',
+                });
+            }
 
-        try {
-            // Generate tokens
-            const token = await oauth.generateTokens(client_id, authCode.userId, authCode.scopes, authCode);
+            console.log('[SERVER] Authorization code valid, generating tokens');
+            console.log('[SERVER] Auth code includes nonce:', !!authCode.nonce);
+
+            // Generate tokens using the authCode which includes the nonce value
+            const token = await oauth.generateTokens(finalClientId, authCode.userId, authCode.scopes, authCode);
 
             // Remove the used authorization code
             storage.removeAuthorizationCode(code);
 
+            console.log('[SERVER] Tokens generated successfully');
+            console.log('[SERVER] ID token included:', !!token.id_token);
+
             // Return the tokens
             return res.json(token);
-        } catch (error) {
-            console.error('Error generating tokens:', error);
-            return res.status(500).json({
-                error: 'server_error',
-                error_description: 'An error occurred while generating tokens',
-            });
-        }
-    } else if (grant_type === 'refresh_token') {
-        // Make sure refresh token is provided
-        if (!refresh_token) {
-            return res.status(400).json({
-                error: 'invalid_request',
-                error_description: 'Missing refresh token',
-            });
         }
 
-        try {
-            // Refresh the token
-            const token = await oauth.refreshToken(refresh_token, client_id);
+        // 2. Refresh Token Grant
+        else if (grant_type === 'refresh_token') {
+            if (!refresh_token) {
+                return res.status(400).json({
+                    error: 'invalid_request',
+                    error_description: 'Missing refresh_token parameter',
+                });
+            }
+
+            console.log('[SERVER] Processing refresh token request');
+            const token = await oauth.refreshToken(refresh_token, finalClientId);
+
             if (!token) {
                 return res.status(400).json({
                     error: 'invalid_grant',
@@ -469,46 +545,105 @@ router.post('/oauth/token', async (req: Request, res: Response) => {
                 });
             }
 
-            // Return the new tokens
+            console.log('[SERVER] Refresh token valid, generated new tokens');
             return res.json(token);
-        } catch (error) {
-            console.error('Error refreshing token:', error);
-            return res.status(500).json({
-                error: 'server_error',
-                error_description: 'An error occurred while refreshing token',
-            });
-        }
-    } else if (grant_type === 'urn:ietf:params:oauth:grant-type:device_code') {
-        // Device Authorization Grant
-        if (!device_code) {
-            return res.status(400).json({
-                error: 'invalid_request',
-                error_description: 'Missing device_code parameter',
-            });
         }
 
-        try {
-            // Process the device code token request
-            const result = await oauth.processDeviceCodeTokenRequest(device_code, client_id);
+        // 3. Device Authorization Grant
+        else if (grant_type === 'urn:ietf:params:oauth:grant-type:device_code') {
+            if (!device_code) {
+                return res.status(400).json({
+                    error: 'invalid_request',
+                    error_description: 'Missing device_code parameter',
+                });
+            }
+
+            console.log('[SERVER] Processing device code token request');
+            const result = await oauth.processDeviceCodeTokenRequest(device_code, finalClientId);
 
             // Check if it's an error response
             if ('error' in result) {
-                return res.status(400).json(result);
+                const statusCode = result.error === 'authorization_pending' ? 400 : 400;
+                return res.status(statusCode).json(result);
             }
 
-            // Return the tokens
+            console.log('[SERVER] Device code valid, tokens generated');
             return res.json(result);
-        } catch (error) {
-            console.error('Error processing device code:', error);
-            return res.status(500).json({
-                error: 'server_error',
-                error_description: 'An error occurred while processing device code',
+        }
+
+        // 4. Resource Owner Password Credentials Grant
+        else if (grant_type === 'password') {
+            // Note: This grant type is not recommended for modern applications
+            // and is included only for legacy compatibility
+            if (!username || !password) {
+                return res.status(400).json({
+                    error: 'invalid_request',
+                    error_description: 'Missing username or password',
+                });
+            }
+
+            console.log('[SERVER] Processing password grant - validating credentials');
+            const loginResult = await easypanel.validateEasypanelCredentials(username, password);
+
+            if (!loginResult.success || !loginResult.user) {
+                return res.status(400).json({
+                    error: 'invalid_grant',
+                    error_description: 'Invalid credentials',
+                });
+            }
+
+            // Parse requested scopes
+            const requestedScopes = scope ? scope.split(' ') : ['profile', 'email'];
+            const validScopes = oauth.filterScopes(client, requestedScopes);
+
+            console.log('[SERVER] Credentials valid, generating tokens');
+            const token = await oauth.generateTokens(finalClientId, loginResult.user.id, validScopes);
+
+            return res.json(token);
+        }
+
+        // 5. Client Credentials Grant
+        else if (grant_type === 'client_credentials') {
+            // This grant type is for client-to-client authentication without a user
+            // Only allowed for special system clients
+            if (!client.allowedScopes.includes('system')) {
+                return res.status(400).json({
+                    error: 'unauthorized_client',
+                    error_description: 'This client is not authorized to use client credentials grant',
+                });
+            }
+
+            // Parse requested scopes
+            const requestedScopes = scope ? scope.split(' ') : ['system'];
+            const validScopes = oauth.filterScopes(client, requestedScopes);
+
+            if (validScopes.length === 0) {
+                return res.status(400).json({
+                    error: 'invalid_scope',
+                    error_description: 'Requested scopes are not allowed for this client',
+                });
+            }
+
+            console.log('[SERVER] Generating client credentials tokens');
+            // Use client ID as the "user" - tokens will be for the client itself
+            const token = await oauth.generateTokens(finalClientId, finalClientId, validScopes);
+
+            return res.json(token);
+        }
+
+        // Unsupported grant type
+        else {
+            console.log('[SERVER] Unsupported grant type:', grant_type);
+            return res.status(400).json({
+                error: 'unsupported_grant_type',
+                error_description: `Grant type '${grant_type}' is not supported`,
             });
         }
-    } else {
-        return res.status(400).json({
-            error: 'unsupported_grant_type',
-            error_description: 'Unsupported grant type',
+    } catch (error) {
+        console.error('[SERVER] Error processing token request:', error);
+        return res.status(500).json({
+            error: 'server_error',
+            error_description: 'An error occurred while processing the token request',
         });
     }
 });

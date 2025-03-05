@@ -6,13 +6,23 @@ const router = Router();
 
 // Login page
 router.get('/login', csrfProtection, (req: Request, res: Response) => {
-    // If user is already logged in, redirect to home
+    // If user is already logged in, redirect to return URL or home
     if (req.session.user) {
-        // Check if there's a returnTo URL
+        // Check if there's a returnTo URL or an auth request
         if (req.session.returnTo) {
             const returnTo = req.session.returnTo;
             delete req.session.returnTo;
             return res.redirect(returnTo);
+        } else if (req.session.authRequest) {
+            // If there's a pending auth request, redirect to authorization endpoint
+            return res.redirect(`/oauth/authorize?${new URLSearchParams({
+                response_type: req.session.authRequest.response_type,
+                client_id: req.session.authRequest.client_id,
+                redirect_uri: req.session.authRequest.redirect_uri,
+                scope: req.session.authRequest.scope,
+                state: req.session.authRequest.state,
+                ...(req.session.authRequest.nonce ? { nonce: req.session.authRequest.nonce } : {})
+            }).toString()}`);
         }
         return res.redirect('/');
     }
@@ -63,12 +73,20 @@ router.post('/login', csrfProtection, async (req: Request, res: Response) => {
     // Login successful, store user in session
     req.session.user = loginResult.user;
 
-    // Check if there's a returnTo URL
-    const returnTo = req.session.returnTo;
-    delete req.session.returnTo;
-
-    // Redirect to appropriate page
-    if (returnTo) {
+    // Check if there's an auth request or returnTo URL
+    if (req.session.authRequest) {
+        // If there's a pending auth request, redirect to authorization endpoint
+        return res.redirect(`/oauth/authorize?${new URLSearchParams({
+            response_type: req.session.authRequest.response_type,
+            client_id: req.session.authRequest.client_id,
+            redirect_uri: req.session.authRequest.redirect_uri,
+            scope: req.session.authRequest.scope,
+            state: req.session.authRequest.state,
+            ...(req.session.authRequest.nonce ? { nonce: req.session.authRequest.nonce } : {})
+        }).toString()}`);
+    } else if (req.session.returnTo) {
+        const returnTo = req.session.returnTo;
+        delete req.session.returnTo;
         return res.redirect(returnTo);
     } else {
         return res.redirect('/');
