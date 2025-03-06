@@ -8,7 +8,8 @@ An OAuth2 authorization server that integrates with Easypanel's user authenticat
 - Integration with Easypanel user authentication
 - Client management API
 - Token introspection and user info endpoints
-- Basic UI for login and consent screens
+- Finished UI
+- Uses LMDB for storage
 
 ## Prerequisites
 
@@ -27,6 +28,7 @@ An OAuth2 authorization server that integrates with Easypanel's user authenticat
    export EASYPANEL_URL=http://your-easypanel-url
    export PORT=3000
    export SESSION_SECRET=your-secure-session-secret
+   export API_TOKEN=easypanel-api-token
    ```
 4. Build the project:
    ```
@@ -64,12 +66,6 @@ For development with hot-reloading:
 ```
 npm run dev
 ```
-
-## Known Issues and Limitations
-
-- Currently uses in-memory storage, should be replaced with a database for production use
-- Basic UI without styling
-- Limited error reporting and validation
 
 ## Security Considerations
 
