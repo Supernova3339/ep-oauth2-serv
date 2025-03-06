@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  oauth2-server:
+    build: .
+    container_name: easypanel-oauth2-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - oauth2_data:/app/data
+    environment:
+      - EASYPANEL_URL=https://your-easypanel-url
+      - SESSION_SECRET=change-this-to-a-random-secret-string
+      - API_TOKEN=your-easypanel-api-token
+      - NODE_ENV=production
+      - PORT=3000
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  oauth2_data:
+    name: easypanel-oauth2-data

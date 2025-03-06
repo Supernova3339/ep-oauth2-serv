@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  oauth2-server-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: easypanel-oauth2-server-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - oauth2_dev_data:/app/data
+    environment:
+      - EASYPANEL_URL=https://your-easypanel-url
+      - SESSION_SECRET=dev-session-secret
+      - API_TOKEN=your-easypanel-api-token
+      - NODE_ENV=development
+      - PORT=3000
+    command: npm run dev
+
+volumes:
+  oauth2_dev_data:
+    name: easypanel-oauth2-dev-data
