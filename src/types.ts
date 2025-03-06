@@ -17,6 +17,8 @@ declare module 'express-session' {
             pendingLogin: boolean;
         };
         returnTo?: string; // URL to return to after authentication
+        successMessage?: string; // Success flash message
+        errorMessage?: string; // Error flash message
     }
 }
 

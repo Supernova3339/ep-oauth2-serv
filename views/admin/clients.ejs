@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Client Management - OAuth2 Server</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        :root {
+            --primary: #10b981;
+            --primary-light: #d1fae5;
+            --primary-dark: #059669;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --danger-dark: #dc2626;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --radius: 0.375rem;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--gray-100);
+            color: var(--gray-800);
+            line-height: 1.5;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            color: var(--gray-900);
+            font-size: 1.875rem;
+            font-weight: 600;
+        }
+
+        h2 {
+            color: var(--gray-800);
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+            border: none;
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger-dark);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--gray-300);
+            color: var(--gray-700);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--gray-100);
+        }
+
+        .card {
+            background-color: white;
+            border-radius: var(--radius);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+        }
+
+        .alert-success {
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .alert-danger {
+            background-color: var(--danger-light);
+            color: var(--danger-dark);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        th {
+            font-weight: 600;
+            color: var(--gray-700);
+            background-color: var(--gray-50);
+        }
+
+        tbody tr:hover {
+            background-color: var(--gray-50);
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 9999px;
+            background-color: var(--gray-100);
+            color: var(--gray-700);
+        }
+
+        .badge-primary {
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .scopes-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+
+        .no-clients {
+            padding: 2rem;
+            text-align: center;
+            background-color: var(--gray-50);
+            border-radius: var(--radius);
+            color: var(--gray-600);
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+
+        .modal {
+            background-color: white;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            color: var(--gray-500);
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius);
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        textarea.form-control {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .form-check {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-check-input {
+            margin-right: 0.5rem;
+        }
+
+        .form-hint {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-top: 0.25rem;
+        }
+
+        .token-value {
+            padding: 0.5rem;
+            background-color: var(--gray-100);
+            border-radius: var(--radius);
+            font-family: monospace;
+            font-size: 0.75rem;
+            word-break: break-all;
+        }
+
+        .token-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .responsive-table {
+                display: block;
+                width: 100%;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>OAuth Client Management</h1>
+        <button id="createClientBtn" class="btn btn-primary">Create New Client</button>
+    </header>
+
+    <% if (success) { %>
+        <div class="alert alert-success">
+            <%= success %>
+        </div>
+    <% } %>
+
+    <% if (error) { %>
+        <div class="alert alert-danger">
+            <%= error %>
+        </div>
+    <% } %>
+
+    <div class="card">
+        <h2>Registered Clients</h2>
+
+        <% if (clients && clients.length > 0) { %>
+            <div class="responsive-table">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Client ID</th>
+                        <th>Redirect URIs</th>
+                        <th>Scopes</th>
+                        <th>Persistent</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <% clients.forEach(function(client) { %>
+                        <tr>
+                            <td><%= client.name %></td>
+                            <td><code><%= client.id %></code></td>
+                            <td>
+                                <% client.redirectUris.forEach(function(uri, index) { %>
+                                    <div><small><%= uri %></small></div>
+                                <% }); %>
+                            </td>
+                            <td>
+                                <div class="scopes-list">
+                                    <% client.allowedScopes.forEach(function(scope) { %>
+                                        <span class="badge badge-primary"><%= scope %></span>
+                                    <% }); %>
+                                </div>
+                            </td>
+                            <td><%= client.persistent ? 'Yes' : 'No' %></td>
+                            <td><small><%= new Date(client.createdAt).toLocaleString() %></small></td>
+                            <td>
+                                <div class="actions">
+                                    <button class="btn btn-sm btn-outline view-client"
+                                            data-client-id="<%= client.id %>"
+                                            data-client-name="<%= client.name %>"
+                                            data-client-redirect-uris="<%= client.redirectUris.join(',') %>"
+                                            data-client-scopes="<%= client.allowedScopes.join(',') %>"
+                                            data-client-persistent="<%= client.persistent %>">
+                                        View
+                                    </button>
+                                    <button class="btn btn-sm btn-outline edit-client"
+                                            data-client-id="<%= client.id %>"
+                                            data-client-name="<%= client.name %>"
+                                            data-client-redirect-uris="<%= client.redirectUris.join('\n') %>"
+                                            data-client-scopes="<%= client.allowedScopes.join(',') %>"
+                                            data-client-persistent="<%= client.persistent %>">
+                                        Edit
+                                    </button>
+                                    <a href="/admin/clients/<%= client.id %>/secret" class="btn btn-sm btn-outline">
+                                        New Secret
+                                    </a>
+                                    <button class="btn btn-sm btn-danger delete-client"
+                                            data-client-id="<%= client.id %>"
+                                            data-client-name="<%= client.name %>">
+                                        Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        <% } else { %>
+            <div class="no-clients">
+                <p>No OAuth clients have been registered yet.</p>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<!-- Create Client Modal -->
+<div id="createClientModal" class="modal-backdrop hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Create New OAuth Client</h3>
+            <button class="modal-close" data-close-modal="createClientModal">&times;</button>
+        </div>
+        <form action="/admin/clients" method="post">
+            <div class="modal-body">
+                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+
+                <div class="form-group">
+                    <label for="name" class="form-label">Client Name</label>
+                    <input type="text" id="name" name="name" class="form-control" required>
+                    <div class="form-hint">A descriptive name for the client application</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="redirectUris" class="form-label">Redirect URIs</label>
+                    <textarea id="redirectUris" name="redirectUris" class="form-control" required></textarea>
+                    <div class="form-hint">One URI per line. Must be exact matches including protocol and trailing slashes</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Allowed Scopes</label>
+                    <div class="form-check">
+                        <input type="checkbox" id="scope_profile" name="scopes" value="profile" class="form-check-input" checked>
+                        <label for="scope_profile">profile</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" id="scope_email" name="scopes" value="email" class="form-check-input" checked>
+                        <label for="scope_email">email</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" id="scope_openid" name="scopes" value="openid" class="form-check-input">
+                        <label for="scope_openid">openid</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-check">
+                        <input type="checkbox" id="persistent" name="persistent" value="true" class="form-check-input">
+                        <label for="persistent">Persistent (save to disk)</label>
+                    </div>
+                    <div class="form-hint">Persistent clients will be available after server restart</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" data-close-modal="createClientModal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Client</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- View Client Modal -->
+<div id="viewClientModal" class="modal-backdrop hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Client Details</h3>
+            <button class="modal-close" data-close-modal="viewClientModal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <h2 id="viewClientName"></h2>
+
+            <div class="form-group">
+                <label class="token-label">Client ID</label>
+                <div class="token-value" id="viewClientId"></div>
+            </div>
+
+            <div class="form-group">
+                <label class="token-label">Redirect URIs</label>
+                <div id="viewClientRedirectUris"></div>
+            </div>
+
+            <div class="form-group">
+                <label class="token-label">Allowed Scopes</label>
+                <div class="scopes-list" id="viewClientScopes"></div>
+            </div>
+
+            <div class="form-group">
+                <label class="token-label">Persistent</label>
+                <div id="viewClientPersistent"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline" data-close-modal="viewClientModal">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Client Modal -->
+<div id="editClientModal" class="modal-backdrop hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Edit OAuth Client</h3>
+            <button class="modal-close" data-close-modal="editClientModal">&times;</button>
+        </div>
+        <form id="editClientForm" action="/admin/clients" method="post">
+            <input type="hidden" name="_method" value="PUT">
+            <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+            <input type="hidden" id="editClientId" name="id" value="">
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="editClientName" class="form-label">Client Name</label>
+                    <input type="text" id="editClientName" name="name" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="editClientRedirectUris" class="form-label">Redirect URIs</label>
+                    <textarea id="editClientRedirectUris" name="redirectUris" class="form-control" required></textarea>
+                    <div class="form-hint">One URI per line</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Allowed Scopes</label>
+                    <div class="form-check">
+                        <input type="checkbox" id="editScopeProfile" name="scopes" value="profile" class="form-check-input">
+                        <label for="editScopeProfile">profile</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" id="editScopeEmail" name="scopes" value="email" class="form-check-input">
+                        <label for="editScopeEmail">email</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" id="editScopeOpenid" name="scopes" value="openid" class="form-check-input">
+                        <label for="editScopeOpenid">openid</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-check">
+                        <input type="checkbox" id="editClientPersistent" name="persistent" value="true" class="form-check-input">
+                        <label for="editClientPersistent">Persistent (save to disk)</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" data-close-modal="editClientModal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Client</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Client Modal -->
+<div id="deleteClientModal" class="modal-backdrop hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Delete OAuth Client</h3>
+            <button class="modal-close" data-close-modal="deleteClientModal">&times;</button>
+        </div>
+        <form id="deleteClientForm" action="/admin/clients" method="post">
+            <input type="hidden" name="_method" value="DELETE">
+            <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+            <input type="hidden" id="deleteClientId" name="id" value="">
+
+            <div class="modal-body">
+                <p>Are you sure you want to delete the client "<span id="deleteClientName"></span>"?</p>
+                <p class="alert alert-danger">This action cannot be undone. All applications using this client will lose access.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" data-close-modal="deleteClientModal">Cancel</button>
+                <button type="submit" class="btn btn-danger">Delete Client</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Modal handling
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show modal functions
+        function showModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        // Hide modal functions
+        function hideModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // Create client button
+        document.getElementById('createClientBtn').addEventListener('click', function() {
+            showModal('createClientModal');
+        });
+
+        // Close buttons for all modals
+        document.querySelectorAll('[data-close-modal]').forEach(function(button) {
+            const modalId = button.getAttribute('data-close-modal');
+            button.addEventListener('click', function() {
+                hideModal(modalId);
+            });
+        });
+
+        // Close modal when clicking outside
+        document.querySelectorAll('.modal-backdrop').forEach(function(backdrop) {
+            backdrop.addEventListener('click', function(event) {
+                if (event.target === backdrop) {
+                    hideModal(backdrop.id);
+                }
+            });
+        });
+
+        // View client buttons
+        document.querySelectorAll('.view-client').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const clientId = this.getAttribute('data-client-id');
+                const clientName = this.getAttribute('data-client-name');
+                const redirectUris = this.getAttribute('data-client-redirect-uris').split(',');
+                const scopes = this.getAttribute('data-client-scopes').split(',');
+                const isPersistent = this.getAttribute('data-client-persistent') === 'true';
+
+                // Fill the view modal
+                document.getElementById('viewClientName').textContent = clientName;
+                document.getElementById('viewClientId').textContent = clientId;
+
+                // Create redirect URIs list
+                const redirectUrisList = document.getElementById('viewClientRedirectUris');
+                redirectUrisList.innerHTML = '';
+                redirectUris.forEach(function(uri) {
+                    const div = document.createElement('div');
+                    div.textContent = uri;
+                    redirectUrisList.appendChild(div);
+                });
+
+                // Create scopes badges
+                const scopesList = document.getElementById('viewClientScopes');
+                scopesList.innerHTML = '';
+                scopes.forEach(function(scope) {
+                    const span = document.createElement('span');
+                    span.className = 'badge badge-primary';
+                    span.textContent = scope;
+                    scopesList.appendChild(span);
+                });
+
+                // Set persistent value
+                document.getElementById('viewClientPersistent').textContent = isPersistent ? 'Yes' : 'No';
+
+                // Show the modal
+                showModal('viewClientModal');
+            });
+        });
+
+        // Edit client buttons
+        document.querySelectorAll('.edit-client').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const clientId = this.getAttribute('data-client-id');
+                const clientName = this.getAttribute('data-client-name');
+                const redirectUris = this.getAttribute('data-client-redirect-uris');
+                const scopes = this.getAttribute('data-client-scopes').split(',');
+                const isPersistent = this.getAttribute('data-client-persistent') === 'true';
+
+                // Fill the edit form
+                document.getElementById('editClientId').value = clientId;
+                document.getElementById('editClientName').value = clientName;
+                document.getElementById('editClientRedirectUris').value = redirectUris;
+
+                // Set scopes checkboxes
+                document.getElementById('editScopeProfile').checked = scopes.includes('profile');
+                document.getElementById('editScopeEmail').checked = scopes.includes('email');
+                document.getElementById('editScopeOpenid').checked = scopes.includes('openid');
+
+                // Set persistent checkbox
+                document.getElementById('editClientPersistent').checked = isPersistent;
+
+                // Update form action
+                document.getElementById('editClientForm').action = `/admin/clients/${clientId}`;
+
+                // Show the modal
+                showModal('editClientModal');
+            });
+        });
+
+        // Delete client buttons
+        document.querySelectorAll('.delete-client').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const clientId = this.getAttribute('data-client-id');
+                const clientName = this.getAttribute('data-client-name');
+
+                // Fill the delete form
+                document.getElementById('deleteClientId').value = clientId;
+                document.getElementById('deleteClientName').textContent = clientName;
+
+                // Update form action
+                document.getElementById('deleteClientForm').action = `/admin/clients/${clientId}`;
+
+                // Show the modal
+                showModal('deleteClientModal');
+            });
+        });
+
+        // Handle form method override for PUT and DELETE
+        document.querySelectorAll('form').forEach(function(form) {
+            form.addEventListener('submit', function(event) {
+                const methodInput = form.querySelector('input[name="_method"]');
+                if (methodInput) {
+                    const method = methodInput.value.toUpperCase();
+                    if (method === 'PUT' || method === 'DELETE') {
+                        // Use the action attribute as the URL
+                        const url = form.action;
+
+                        // Collect form data
+                        const formData = new FormData(form);
+
+                        // Create an object from the form data
+                        const data = {};
+                        for (const [key, value] of formData.entries()) {
+                            if (key === 'scopes') {
+                                // Handle multiple checkbox values
+                                if (!data[key]) {
+                                    data[key] = [];
+                                }
+                                data[key].push(value);
+                            } else if (key !== '_method') {
+                                data[key] = value;
+                            }
+                        }
+
+                        // Special handling for redirectUris
+                        if (data.redirectUris) {
+                            data.redirectUris = data.redirectUris.split('\n').filter(uri => uri.trim() !== '');
+                        }
+
+                        // Perform the fetch request with the appropriate method
+                        fetch(url, {
+                            method: method,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': data.csrf_token
+                            },
+                            body: JSON.stringify(data)
+                        })
+                            .then(response => {
+                                if (response.ok) {
+                                    // Reload the page to show updated data
+                                    window.location.reload();
+                                } else {
+                                    return response.json().then(error => {
+                                        throw new Error(error.message || 'An error occurred');
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                alert('Error: ' + error.message);
+                            });
+
+                        // Prevent the default form submission
+                        event.preventDefault();
+                    }
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>

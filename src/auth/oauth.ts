@@ -9,7 +9,7 @@ import {
 import {
     ACCESS_TOKEN_EXPIRY,
     REFRESH_TOKEN_EXPIRY,
-    AUTH_CODE_EXPIRY
+    AUTH_CODE_EXPIRY, API_TOKEN
 } from '../config';
 // Import LMDB storage instead of memory storage
 import * as storage from '../storage/lmdb';
@@ -129,7 +129,7 @@ export async function generateTokens(
     if (isOpenIdConnect) {
         try {
             // Get user information for claims
-            const user = await easypanel.getUserById('admin-token', userId);
+            const user = await easypanel.getUserById(API_TOKEN, userId);
 
             if (user) {
                 // Generate ID token

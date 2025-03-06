@@ -12,6 +12,10 @@ import { requestLogger, errorHandler } from './middleware';
 import authRoutes from './routes/auth';
 import oauthRoutes from './routes/oauth';
 import apiRoutes from './routes/api';
+import testRoutes from './routes/test';
+import dbExplorerRoutes from './routes/test-explorer';
+import adminRoutes from './routes/admin';
+
 // Import the LMDB storage instead of memory storage
 import * as storage from './storage/lmdb';
 
@@ -45,7 +49,11 @@ storage.initializeTestClient();
 // Routes
 app.use(authRoutes);
 app.use(oauthRoutes);
-app.use(apiRoutes);
+app.use(apiRoutes)
+app.use(testRoutes);
+app.use(dbExplorerRoutes);
+app.use(adminRoutes);
+
 
 // Home page
 app.get('/', (req, res) => {
