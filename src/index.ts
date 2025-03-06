@@ -2,13 +2,8 @@ import express from 'express';
 import session from 'express-session';
 import bodyParser from 'body-parser';
 import path from 'path';
-import {
-    PORT,
-    SESSION_SECRET,
-    EASYPANEL_URL,
-    NODE_ENV
-} from './config';
-import { requestLogger, errorHandler } from './middleware';
+import {EASYPANEL_URL, NODE_ENV, PORT, SESSION_SECRET} from './config';
+import {errorHandler, requestLogger} from './middleware';
 import authRoutes from './routes/auth';
 import oauthRoutes from './routes/oauth';
 import apiRoutes from './routes/api';
@@ -27,7 +22,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../views'));
 
 // Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
 app.use(
     session({
@@ -43,8 +38,10 @@ app.use(
 );
 app.use(requestLogger);
 
-// Initialize test client
-storage.initializeTestClient();
+// Initialize test client in development
+if (NODE_ENV == 'development') {
+    storage.initializeTestClient();
+}
 
 // Routes
 app.use(authRoutes);
