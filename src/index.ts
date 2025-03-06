@@ -27,12 +27,13 @@ app.use(bodyParser.json());
 app.use(
     session({
         secret: SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
+        resave: true,  // Changed to true to ensure session is always saved
+        saveUninitialized: true, // Changed to true to save new sessions
         cookie: {
-            secure: NODE_ENV === 'production',
+            secure: NODE_ENV === 'production' && process.env.ENABLE_SECURE_COOKIE === 'true', // Only use secure cookies when explicitly enabled
             httpOnly: true,
             maxAge: 24 * 60 * 60 * 1000, // 24 hours
+            sameSite: 'lax' // Helps with CSRF protection while allowing redirects
         }
     })
 );

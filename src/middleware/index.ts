@@ -42,9 +42,28 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
  * Generates and verifies CSRF tokens
  */
 export function csrfProtection(req: Request, res: Response, next: NextFunction) {
+    // Debug session information
+    // console.log('Session ID:', req.sessionID);
+    // console.log('Session has CSRF token:', !!req.session.csrfToken);
+    // console.log('Session cookie:', req.headers.cookie);
+
     // Generate a CSRF token if one doesn't exist
     if (!req.session.csrfToken) {
         req.session.csrfToken = crypto.randomBytes(16).toString('hex');
+
+        // Force session save to ensure token is stored before proceeding
+        return req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+                return res.status(500).render('error', {
+                    error: 'server_error',
+                    error_description: 'Failed to create CSRF token'
+                });
+            }
+
+            // console.log('New CSRF token generated:', req.session.csrfToken);
+            next();
+        });
     }
 
     // For GET requests, just continue
@@ -55,6 +74,9 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
     // For POST/PUT/DELETE, validate CSRF token
     const csrfToken = req.body.csrf_token;
 
+    // console.log('Received CSRF token:', csrfToken);
+    // console.log('Expected CSRF token:', req.session.csrfToken);
+
     if (!csrfToken || csrfToken !== req.session.csrfToken) {
         return res.status(403).render('error', {
             error: 'invalid_request',
@@ -63,8 +85,18 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
     }
 
     // Generate a new token for next request
+    const oldToken = req.session.csrfToken;
     req.session.csrfToken = crypto.randomBytes(16).toString('hex');
-    next();
+
+    // Force session save to ensure token update is stored
+    req.session.save((err) => {
+        if (err) {
+            console.error('Error updating CSRF token:', err);
+            // Continue anyway, using the old token is better than failing
+            req.session.csrfToken = oldToken;
+        }
+        next();
+    });
 }
 
 /**
