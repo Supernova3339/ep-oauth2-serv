@@ -1,12 +1,12 @@
 import { Router, Request, Response } from 'express';
-import { requireAuth, requireAdmin } from '../middleware';
+import {requireAuthOrApiKey, requireAdminOrApiKey} from '../middleware';
 // Update to use LMDB storage
 import * as storage from '../storage/lmdb';
 
 const router = Router();
 
 // List all OAuth clients
-router.get('/api/clients', requireAuth, requireAdmin, (req: Request, res: Response) => {
+router.get('/api/clients', requireAuthOrApiKey, requireAdminOrApiKey, (req: Request, res: Response) => {
     const clients = storage.listClients().map(client => ({
         id: client.id,
         name: client.name,
@@ -20,7 +20,7 @@ router.get('/api/clients', requireAuth, requireAdmin, (req: Request, res: Respon
 });
 
 // Get a specific OAuth client
-router.get('/api/clients/:id', requireAuth, requireAdmin, (req: Request, res: Response) => {
+router.get('/api/clients/:id', requireAuthOrApiKey, requireAdminOrApiKey, (req: Request, res: Response) => {
     const client = storage.getClient(req.params.id);
 
     if (!client) {
@@ -44,7 +44,7 @@ router.get('/api/clients/:id', requireAuth, requireAdmin, (req: Request, res: Re
 });
 
 // Create a new OAuth client
-router.post('/api/clients', requireAuth, requireAdmin, (req: Request, res: Response) => {
+router.post('/api/clients', requireAuthOrApiKey, requireAdminOrApiKey, (req: Request, res: Response) => {
     const { name, redirectUris, allowedScopes, persistent } = req.body as {
         name: string;
         redirectUris: string[];
@@ -81,7 +81,7 @@ router.post('/api/clients', requireAuth, requireAdmin, (req: Request, res: Respo
 });
 
 // Delete an OAuth client
-router.delete('/api/clients/:id', requireAuth, requireAdmin, (req: Request, res: Response) => {
+router.delete('/api/clients/:id', requireAuthOrApiKey, requireAdminOrApiKey, (req: Request, res: Response) => {
     const client = storage.getClient(req.params.id);
 
     if (!client) {
@@ -107,7 +107,7 @@ router.delete('/api/clients/:id', requireAuth, requireAdmin, (req: Request, res:
 });
 
 // Update an OAuth client
-router.put('/api/clients/:id', requireAuth, requireAdmin, (req: Request, res: Response) => {
+router.put('/api/clients/:id', requireAuthOrApiKey, requireAdminOrApiKey, (req: Request, res: Response) => {
     const client = storage.getClient(req.params.id);
 
     if (!client) {

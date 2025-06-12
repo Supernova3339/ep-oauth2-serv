@@ -1,367 +1,572 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Authorization - OAuth2 Server</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authorization Request - OAuth2 Server</title>
     <style>
         :root {
-            --primary: #10b981;
-            --primary-hover: #059669;
-            --danger: #ef4444;
-            --danger-hover: #dc2626;
-            --green-50: #ecfdf5;
-            --green-100: #d1fae5;
-            --green-500: #10b981;
-            --green-600: #059669;
-            --green-700: #047857;
-            --gray-50: #f9fafb;
-            --gray-100: #f3f4f6;
-            --gray-200: #e5e7eb;
-            --gray-300: #d1d5db;
-            --gray-600: #4b5563;
-            --gray-700: #374151;
-            --gray-800: #1f2937;
-            --gray-900: #111827;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            --radius-sm: 0.125rem;
-            --radius: 0.375rem;
-            --radius-md: 0.5rem;
-            --radius-lg: 0.75rem;
+            /* Light mode colors */
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-accent: #10b981;
+            --border-color: #e2e8f0;
+            --input-bg: #ffffff;
+            --input-border: #d1d5db;
+            --input-border-focus: #10b981;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --logo-color: #10b981;
+            --error-bg: #fef2f2;
+            --error-border: #fecaca;
+            --error-text: #dc2626;
+            --warning-bg: #fffbeb;
+            --warning-border: #fed7aa;
+            --warning-text: #d97706;
+            --success-bg: #f0fdf4;
+            --success-border: #bbf7d0;
+            --success-text: #059669;
+            --scope-bg: #f1f5f9;
+            --scope-border: #cbd5e1;
+            --button-deny: #ef4444;
+            --button-deny-hover: #dc2626;
+        }
+
+        [data-theme="dark"] {
+            /* Dark mode colors */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-accent: #10b981;
+            --border-color: #334155;
+            --input-bg: #334155;
+            --input-border: #475569;
+            --input-border-focus: #10b981;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            --logo-color: #10b981;
+            --error-bg: #372626;
+            --error-border: #7f2d2d;
+            --error-text: #fca5a5;
+            --warning-bg: #451a03;
+            --warning-border: #a16207;
+            --warning-text: #fbbf24;
+            --success-bg: #064e3b;
+            --success-border: #047857;
+            --success-text: #6ee7b7;
+            --scope-bg: #334155;
+            --scope-border: #475569;
+            --button-deny: #ef4444;
+            --button-deny-hover: #dc2626;
         }
 
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--gray-100);
-            color: var(--gray-800);
-            line-height: 1.5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 2rem 1rem;
+            padding: 1rem;
         }
 
-        .container {
+        .consent-container {
+            background-color: var(--bg-secondary);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
             width: 100%;
             max-width: 480px;
-            background-color: white;
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-lg);
-            overflow: hidden;
+            padding: 2rem;
+            border: 1px solid var(--border-color);
         }
 
-        .header {
-            padding: 1.5rem 2rem;
-            background-color: white;
-            border-bottom: 1px solid var(--gray-200);
-        }
-
-        .content {
-            padding: 1.5rem 2rem;
-        }
-
-        h1 {
-            color: var(--gray-900);
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-
-        .subtitle {
-            color: var(--gray-600);
-            font-size: 0.875rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .client-info {
+        .logo-container {
             display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1.25rem;
-            background-color: var(--green-50);
-            border-radius: var(--radius);
-            border: 1px solid var(--green-100);
+            justify-content: center;
             margin-bottom: 1.5rem;
         }
 
-        .client-icon {
-            width: 48px;
-            height: 48px;
-            background-color: var(--green-600);
-            color: white;
-            border-radius: var(--radius);
+        .logo {
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
-            font-size: 1.25rem;
         }
 
-        .client-details {
-            flex: 1;
+        .logo svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .subtitle {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+
+        .client-info {
+            background-color: var(--scope-bg);
+            border: 1px solid var(--scope-border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
         }
 
         .client-name {
             font-weight: 600;
-            color: var(--gray-900);
+            color: var(--text-accent);
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
         }
 
         .client-description {
             font-size: 0.875rem;
-            color: var(--gray-600);
-            margin-top: 0.25rem;
+            color: var(--text-secondary);
         }
 
-        .scope-list {
-            margin-bottom: 1.5rem;
+        .permissions-section {
+            margin-bottom: 2rem;
         }
 
-        .scope-heading {
-            font-weight: 500;
-            color: var(--gray-700);
-            margin-bottom: 0.75rem;
+        .permissions-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
         }
 
-        .scope-item {
+        .permissions-list {
+            list-style: none;
+        }
+
+        .permission-item {
             display: flex;
             align-items: flex-start;
-            gap: 0.75rem;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid var(--gray-200);
+            padding: 0.75rem;
+            background-color: var(--scope-bg);
+            border: 1px solid var(--scope-border);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
         }
 
-        .scope-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
+        .permission-item:hover {
+            background-color: var(--bg-secondary);
+            border-color: var(--text-accent);
         }
 
-        .scope-icon {
-            flex-shrink: 0;
+        .permission-icon {
             width: 20px;
             height: 20px;
-            background-color: var(--green-500);
-            color: white;
             border-radius: 50%;
+            background-color: var(--text-accent);
+            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 0.75rem;
+            margin-right: 0.75rem;
+            flex-shrink: 0;
         }
 
-        .scope-content {
+        .permission-content {
             flex: 1;
         }
 
-        .scope-title {
+        .permission-name {
             font-weight: 500;
-            color: var(--gray-800);
-        }
-
-        .scope-description {
+            color: var(--text-primary);
             font-size: 0.875rem;
-            color: var(--gray-600);
-            margin-top: 0.25rem;
+            margin-bottom: 0.25rem;
         }
 
-        .buttons {
+        .permission-description {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .user-info {
+            background-color: var(--success-bg);
+            border: 1px solid var(--success-border);
+            color: var(--success-text);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .user-info::before {
+            content: "👤";
+            margin-right: 0.5rem;
+        }
+
+        .action-buttons {
             display: flex;
             gap: 0.75rem;
-            justify-content: flex-end;
-            margin-top: 2rem;
+            margin-top: 1.5rem;
         }
 
-        .btn {
-            padding: 0.625rem 1.25rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            border-radius: var(--radius);
+        .button {
+            flex: 1;
+            padding: 0.75rem 1rem;
             border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .btn-allow {
-            background-color: var(--primary);
+        .button-approve {
+            background: linear-gradient(180deg, #10b981 0%, #059669 100%);
             color: white;
+            box-shadow:
+                    0 1px 0 0 rgba(255, 255, 255, 0.2) inset,
+                    0 1px 2px 0 rgba(0, 0, 0, 0.1),
+                    0 2px 4px 0 rgba(16, 185, 129, 0.2);
         }
 
-        .btn-allow:hover {
-            background-color: var(--primary-hover);
+        .button-approve::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px 8px 0 0;
         }
 
-        .btn-deny {
-            background-color: white;
-            color: var(--gray-700);
-            border: 1px solid var(--gray-300);
+        .button-approve:hover {
+            background: linear-gradient(180deg, #059669 0%, #047857 100%);
+            box-shadow:
+                    0 1px 0 0 rgba(255, 255, 255, 0.2) inset,
+                    0 2px 4px 0 rgba(0, 0, 0, 0.15),
+                    0 4px 8px 0 rgba(16, 185, 129, 0.3);
+            transform: translateY(-1px);
         }
 
-        .btn-deny:hover {
-            background-color: var(--gray-50);
-            color: var(--gray-900);
+        .button-deny {
+            background: var(--bg-secondary);
+            color: var(--button-deny);
+            border: 1px solid var(--button-deny);
         }
 
-        .footer {
-            padding: 1rem 2rem;
-            background-color: var(--green-50);
-            border-top: 1px solid var(--green-100);
-            font-size: 0.75rem;
-            color: var(--gray-600);
+        .button-deny:hover {
+            background: var(--button-deny);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px 0 rgba(239, 68, 68, 0.2);
+        }
+
+        .button:active {
+            transform: translateY(0px);
+        }
+
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .powered-by {
             text-align: center;
-        }
-
-        .debug-info {
-            margin-top: 1rem;
+            margin-top: 2rem;
             font-size: 0.75rem;
-            color: var(--gray-600);
+            color: var(--text-secondary);
         }
 
-        details {
-            margin-top: 0.5rem;
-        }
-
-        summary {
-            cursor: pointer;
+        .theme-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
             padding: 0.5rem;
-            background-color: var(--gray-100);
-            border-radius: var(--radius-sm);
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
         }
 
-        details > div {
-            margin-top: 0.5rem;
-            padding: 0.75rem;
-            background-color: var(--gray-50);
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--gray-200);
+        .theme-toggle:hover {
+            background: var(--bg-primary);
         }
 
-        details p {
-            margin-bottom: 0.375rem;
-        }
-
-        details p:last-child {
-            margin-bottom: 0;
-        }
-
-        @media (max-width: 640px) {
-            .header,
-            .content,
-            .footer {
-                padding: 1.25rem;
+        @media (max-width: 480px) {
+            .consent-container {
+                padding: 1.5rem;
+                margin: 0.5rem;
             }
 
-            .buttons {
+            .theme-toggle {
+                top: 0.5rem;
+                right: 0.5rem;
+            }
+
+            .action-buttons {
                 flex-direction: column;
             }
+        }
 
-            .btn {
-                width: 100%;
-                text-align: center;
-            }
+        /* Loading state */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .loading .button::after {
+            content: "";
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            display: inline-block;
+            animation: spin 1s linear infinite;
+            margin-left: 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="header">
-        <h1>Authorize Application</h1>
-        <div class="subtitle">Review the permissions requested by this application</div>
+<button class="theme-toggle" onclick="toggleTheme()" id="themeToggle" aria-label="Toggle theme">
+    🌙
+</button>
+
+<div class="consent-container">
+    <div class="logo-container">
+        <div class="logo">
+            <svg width="310" height="310" viewBox="0 0 310 310" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="310" height="310" rx="79.2222" fill="url(#paint0_linear_3064_30643)"/>
+                <g filter="url(#filter0_di_3064_30643)">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M171.445 131.475C168.064 127.549 163.14 125.291 157.958 125.291H96.9979L113.357 85.8796C116.115 79.2351 122.602 74.9043 129.796 74.9043L181.204 74.9043C186.354 74.9044 191.251 77.1347 194.632 81.0194L229.195 120.74C233.646 125.855 234.804 133.053 232.183 139.306L214.503 181.477L171.445 131.475ZM138.438 178.501C141.82 182.442 146.753 184.709 151.946 184.709H213.172L196.557 224.2C193.779 230.802 187.314 235.096 180.151 235.096H128.681C123.531 235.096 118.634 232.865 115.253 228.981L80.7119 189.285C76.2499 184.158 75.098 176.936 77.7432 170.675L95.5501 128.523L138.438 178.501Z" fill="url(#paint1_linear_3064_30643)"/>
+                </g>
+                <defs>
+                    <filter id="filter0_di_3064_30643" x="62.3398" y="62.9043" width="189.228" height="192.191" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                        <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+                        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+                        <feOffset dx="2" dy="4"/>
+                        <feGaussianBlur stdDeviation="8"/>
+                        <feComposite in2="hardAlpha" operator="out"/>
+                        <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.08 0"/>
+                        <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_3064_30643"/>
+                        <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_3064_30643" result="shape"/>
+                        <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+                        <feOffset dy="4"/>
+                        <feGaussianBlur stdDeviation="2"/>
+                        <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+                        <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.25 0"/>
+                        <feBlend mode="normal" in2="shape" result="effect2_innerShadow_3064_30643"/>
+                    </filter>
+                    <linearGradient id="paint0_linear_3064_30643" x1="92.3325" y1="-71.1962" x2="312.451" y2="484.052" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#0BA864"/>
+                        <stop offset="1" stop-color="#19BFBF"/>
+                    </linearGradient>
+                    <linearGradient id="paint1_linear_3064_30643" x1="154.954" y1="74.9043" x2="154.954" y2="235.096" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="white"/>
+                        <stop offset="1" stop-color="#D4E8D5"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+        </div>
     </div>
 
-    <div class="content">
-        <div class="client-info">
-            <div class="client-icon">
-                <%= client.name.charAt(0).toUpperCase() %>
-            </div>
-            <div class="client-details">
-                <div class="client-name"><%= client.name %></div>
-                <div class="client-description">Wants to access your Easypanel account</div>
-            </div>
-        </div>
+    <h1 class="title">Authorization Request</h1>
+    <p class="subtitle">
+        <strong><%= client.name %></strong> is requesting access to your Easypanel account
+    </p>
 
-        <% if (scopes && scopes.length > 0) { %>
-            <div class="scope-list">
-                <div class="scope-heading">This application will be able to:</div>
-                <% scopes.forEach(function(scope) { %>
-                    <div class="scope-item">
-                        <div class="scope-icon">✓</div>
-                        <div class="scope-content">
+    <div class="client-info">
+        <div class="client-name"><%= client.name %></div>
+        <div class="client-description">This application is requesting permission to access your information</div>
+    </div>
+
+    <div class="user-info">
+        Signed in as <strong>&nbsp;<%= user.email %></strong>
+    </div>
+
+    <div class="permissions-section">
+        <h3 class="permissions-title">This application will be able to:</h3>
+        <ul class="permissions-list">
+            <% scopes.forEach(function(scope, index) { %>
+                <li class="permission-item">
+                    <div class="permission-icon">
+                        <% if (scope === 'profile') { %>
+                            <div class="scope-icon">✓</div>
+                        <% } else if (scope === 'email') { %>
+                                <div class="scope-icon">✓</div>
+                        <% } else if (scope === 'openid') { %>
+                                <div class="scope-icon">✓</div>
+                        <% } else { %>
+                            🔐
+                        <% } %>
+                    </div>
+                    <div class="permission-content">
+                        <div class="permission-name">
                             <% if (scope === 'profile') { %>
-                                <div class="scope-title">Access your profile</div>
-                                <div class="scope-description">View your basic profile information</div>
+                                Access your profile information
                             <% } else if (scope === 'email') { %>
-                                <div class="scope-title">Access your email address</div>
-                                <div class="scope-description">View your email address information</div>
+                                Access your email address
                             <% } else if (scope === 'openid') { %>
-                                <div class="scope-title">Verify your identity</div>
-                                <div class="scope-description">Confirm who you are</div>
+                                Verify your identity
                             <% } else { %>
-                                <div class="scope-title"><%= scope %></div>
+                                <%= scope.charAt(0).toUpperCase() + scope.slice(1) %> access
+                            <% } %>
+                        </div>
+                        <div class="permission-description">
+                            <% if (scope === 'profile') { %>
+                                Read your basic profile information such as your name and preferences
+                            <% } else if (scope === 'email') { %>
+                                View your email address for identification and communication
+                            <% } else if (scope === 'openid') { %>
+                                Confirm your identity using OpenID Connect authentication
+                            <% } else { %>
+                                Access to <%= scope %> related functionality
                             <% } %>
                         </div>
                     </div>
-                <% }); %>
-            </div>
-        <% } %>
-
-        <form method="POST" action="/oauth/consent">
-            <!-- CSRF Protection -->
-            <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
-
-            <!-- Client and Redirect Info -->
-            <input type="hidden" name="client_id" value="<%= client.id %>">
-            <input type="hidden" name="redirect_uri" value="<%= authRequest.redirect_uri || client.redirectUris[0] %>">
-
-            <!-- Scopes -->
-            <input type="hidden" name="scopes" value="<%= scopes.join(',') %>">
-
-            <!-- Security Parameters -->
-            <% if (authRequest && authRequest.state) { %>
-                <input type="hidden" name="state" value="<%= authRequest.state %>">
-            <% } %>
-
-            <% if (authRequest && authRequest.nonce) { %>
-                <input type="hidden" name="nonce" value="<%= authRequest.nonce %>">
-            <% } %>
-
-            <div class="buttons">
-                <button type="submit" name="approved" value="false" class="btn btn-deny">Cancel</button>
-                <button type="submit" name="approved" value="true" class="btn btn-allow">Allow Access</button>
-            </div>
-        </form>
-
-        <!-- Debug Information (only shown during development) -->
-        <% if (process.env.NODE_ENV !== 'production') { %>
-            <div class="debug-info">
-                <details>
-                    <summary>Debug Information</summary>
-                    <div>
-                        <p><strong>Client ID:</strong> <%= client.id %></p>
-                        <p><strong>Scopes:</strong> <%= scopes.join(', ') %></p>
-                        <% if (authRequest) { %>
-                            <p><strong>State:</strong> <%= authRequest.state || '(not provided)' %></p>
-                            <p><strong>Nonce:</strong> <%= authRequest.nonce || '(not provided)' %></p>
-                            <p><strong>Redirect URI:</strong> <%= authRequest.redirect_uri || '(not provided)' %></p>
-                        <% } %>
-                    </div>
-                </details>
-            </div>
-        <% } %>
+                </li>
+            <% }); %>
+        </ul>
     </div>
 
-    <div class="footer">
-        Secure OAuth2 authentication powered by Easypanel
+    <form method="POST" action="/oauth/consent">
+        <!-- CSRF Protection -->
+        <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+
+        <!-- Client and Redirect Info -->
+        <input type="hidden" name="client_id" value="<%= client.id %>">
+        <input type="hidden" name="redirect_uri" value="<%= authRequest.redirect_uri || client.redirectUris[0] %>">
+
+        <!-- Scopes -->
+        <input type="hidden" name="scopes" value="<%= scopes.join(',') %>">
+
+        <!-- Security Parameters -->
+        <% if (authRequest && authRequest.state) { %>
+            <input type="hidden" name="state" value="<%= authRequest.state %>">
+        <% } %>
+
+        <% if (authRequest && authRequest.nonce) { %>
+            <input type="hidden" name="nonce" value="<%= authRequest.nonce %>">
+        <% } %>
+
+        <div class="action-buttons">
+            <button type="submit" name="denied" value="false" class="button button-deny" id="denyButton">
+                Deny Access
+            </button>
+            <button type="submit" name="approved" value="true" class="button button-approve" id="approveButton">
+                Allow Access
+            </button>
+        </div>
+    </form>
+
+    <div class="powered-by">
+        Powered by Easypanel OAuth2
     </div>
 </div>
+
+<script>
+    // Theme management (same as login page)
+    function getTheme() {
+        return localStorage.getItem('theme') ||
+            (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+
+    function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+        themeToggle.setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`);
+    }
+
+    function toggleTheme() {
+        const currentTheme = getTheme();
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        setTheme(newTheme);
+    }
+
+    // Initialize theme
+    setTheme(getTheme());
+
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (!localStorage.getItem('theme')) {
+            setTheme(e.matches ? 'dark' : 'light');
+        }
+    });
+
+    // Form submission with loading state
+    document.getElementById('consentForm').addEventListener('submit', function(e) {
+        const form = this;
+        const clickedButton = e.submitter;
+
+        // Add loading state
+        form.classList.add('loading');
+
+        // Disable all buttons
+        const buttons = form.querySelectorAll('.button');
+        buttons.forEach(button => button.disabled = true);
+
+        // Update button text
+        if (clickedButton.name === 'approved' && clickedButton.value === 'true') {
+            clickedButton.textContent = 'Authorizing';
+        } else {
+            clickedButton.textContent = 'Denying';
+        }
+    });
+
+    // Add keyboard navigation for accessibility
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            // ESC key denies authorization
+            document.getElementById('denyButton').click();
+        } else if (e.key === 'Enter' && e.ctrlKey) {
+            // Ctrl+Enter approves authorization
+            document.getElementById('approveButton').click();
+        }
+    });
+</script>
 </body>
 </html>

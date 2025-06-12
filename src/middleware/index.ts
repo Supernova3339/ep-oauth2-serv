@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import * as oauth from '../auth/oauth';
+import { CLIENT_API_KEY } from '../config';
 
 /**
  * Ensures the user is authenticated
@@ -35,6 +36,71 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
         });
     }
 
+    next();
+}
+
+/**
+ * Enhanced authentication middleware that supports both session-based auth and API key auth
+ */
+export function requireAuthOrApiKey(req: Request, res: Response, next: NextFunction) {
+    // Check for API key authentication first
+    const apiKey = req.headers['x-api-key'] as string;
+
+    if (apiKey && CLIENT_API_KEY && apiKey === CLIENT_API_KEY) {
+        // API key is valid, mark this as an API request and continue
+        res.locals.isApiRequest = true;
+        res.locals.isAdmin = true; // API key grants admin access
+        return next();
+    }
+
+    // Fall back to session-based authentication
+    if (!req.session.user) {
+        // For API requests (determined by Accept header or path), return JSON error
+        if (req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required. Provide session authentication or X-API-Key header.'
+            });
+        }
+
+        // For web requests, redirect to login
+        if (req.method === 'GET') {
+            req.session.returnTo = req.originalUrl;
+        }
+        return res.redirect('/login');
+    }
+
+    // Session user exists, mark as web request
+    res.locals.isApiRequest = false;
+    res.locals.isAdmin = req.session.user.admin;
+    next();
+}
+
+/**
+ * Requires admin access (via session or API key)
+ */
+export function requireAdminOrApiKey(req: Request, res: Response, next: NextFunction) {
+    // Check if already authenticated via API key
+    if (res.locals.isApiRequest && res.locals.isAdmin) {
+        return next();
+    }
+
+    // Check session-based admin access
+    if (!req.session.user || !req.session.user.admin) {
+        if (req.headers.accept?.includes('application/json') || req.path.startsWith('/api/')) {
+            return res.status(403).json({
+                success: false,
+                error: 'Admin access required'
+            });
+        }
+
+        return res.status(403).render('error', {
+            error: 'forbidden',
+            error_description: 'Admin access required'
+        });
+    }
+
+    res.locals.isAdmin = true;
     next();
 }
 
