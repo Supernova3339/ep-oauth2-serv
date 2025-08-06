@@ -22,5 +22,5 @@ services:
     command: npm run dev
 
 volumes:
-  oauth2_dev_data:
+  data:
     name: easypanel-oauth2-dev-data
