@@ -23,5 +23,5 @@ services:
       start_period: 10s
 
 volumes:
-  oauth2_data:
+  data:
     name: easypanel-oauth2-data
