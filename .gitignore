@@ -1,2 +1,9 @@
 .env
 node_modules
+examples/.env
+examples/config.json
+data
+dist/*
+dist
+examples/dist
+examples/node_modules
