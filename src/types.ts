@@ -1,14 +1,13 @@
-// Extend Express Session
 declare module 'express-session' {
     interface SessionData {
         user?: EasypanelUser;
         authRequest?: {
-            response_type: string | any;
-            client_id: string | any;
-            redirect_uri: string | any;
-            scope: string | any;
-            state: string | any;
-            nonce?: string | any; // Add nonce for OpenID Connect
+            response_type: string;
+            client_id: string;
+            redirect_uri: string;
+            scope: string;
+            state: string;
+            nonce?: string;
         };
         csrfToken?: string;
         twoFactorAuth?: {
@@ -16,13 +15,12 @@ declare module 'express-session' {
             password: string;
             pendingLogin: boolean;
         };
-        returnTo?: string; // URL to return to after authentication
-        successMessage?: string; // Success flash message
-        errorMessage?: string; // Error flash message
+        returnTo?: string;
+        successMessage?: string;
+        errorMessage?: string;
     }
 }
 
-// OAuth2 Client
 export interface Client {
     id: string;
     name: string;
@@ -30,10 +28,9 @@ export interface Client {
     redirectUris: string[];
     allowedScopes: string[];
     createdAt: Date;
-    persistent?: boolean; // Whether the client should be saved to disk
+    persistent?: boolean;
 }
 
-// Authorization Code
 export interface AuthorizationCode {
     code: string;
     clientId: string;
@@ -41,10 +38,9 @@ export interface AuthorizationCode {
     redirectUri: string;
     expiresAt: Date;
     scopes: string[];
-    nonce?: string; // OpenID Connect needs this
+    nonce?: string;
 }
 
-// Access Token
 export interface Token {
     accessToken: string;
     refreshToken: string;
@@ -54,25 +50,16 @@ export interface Token {
     expiresAt: Date;
 }
 
-// Easypanel User
 export interface EasypanelUser {
     id: string;
     email: string;
     admin: boolean;
 }
 
-// Login Response
 export interface LoginResponse {
     success: boolean;
     user?: EasypanelUser;
     twoFactorRequired?: boolean;
     error?: string;
     token?: string;
-}
-
-// API Responses
-export interface ApiResponse<T> {
-    success: boolean;
-    data?: T;
-    error?: string;
 }
