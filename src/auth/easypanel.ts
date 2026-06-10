@@ -43,12 +43,19 @@ export async function validateEasypanelCredentials(
         if (axios.isAxiosError(error) && error.response) {
             const responseData = error.response.data;
             console.log('[easypanel] auth/login error response:', error.response.status, JSON.stringify(responseData));
-            let errorMessage = responseData?.error?.json?.message
+            let errorMessage = responseData?.json?.message
+                || responseData?.error?.json?.message
                 || responseData?.error?.message
                 || responseData?.message
                 || (typeof responseData === 'string' ? responseData : 'Authentication failed');
 
-            if (errorMessage.includes('Invalid Code')) {
+            if (responseData?.json?.code === 'TOO_MANY_REQUESTS') {
+                const resetMs = responseData.json.data?.reset;
+                const waitSeconds = resetMs ? Math.max(0, Math.ceil((resetMs - Date.now()) / 1000)) : null;
+                errorMessage = waitSeconds
+                    ? `Too many login attempts. Please try again in ${waitSeconds} seconds.`
+                    : 'Too many login attempts. Please try again later.';
+            } else if (errorMessage.includes('Invalid Code')) {
                 errorMessage = 'Invalid verification code. Please try again.';
             } else if (errorMessage.includes('expired')) {
                 errorMessage = 'Verification code has expired. Please request a new one.';
