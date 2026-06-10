@@ -11,6 +11,10 @@ import * as storage from './storage/lmdb';
 
 const app = express();
 
+if (NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+}
+
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -19,6 +23,7 @@ app.use(
         secret: SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
+        proxy: NODE_ENV === 'production',
         cookie: {
             secure: NODE_ENV === 'production',
             httpOnly: true,
