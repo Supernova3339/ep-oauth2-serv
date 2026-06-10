@@ -20,7 +20,7 @@ export async function validateEasypanelCredentials(
         if (code) (payload.json as Record<string, unknown>).code = code;
 
         const response = await client.post(
-            `${EASYPANEL_URL}/api/trpc/auth.login`,
+            `${EASYPANEL_URL}/api/rpc/auth.login`,
             payload,
             { headers: { 'Content-Type': 'application/json' } }
         );
@@ -74,7 +74,7 @@ export async function getUserInfo(token: string): Promise<EasypanelUser | null> 
 
 export async function listUsers(token: string): Promise<EasypanelUser[] | null> {
     try {
-        const response = await client.get(`${EASYPANEL_URL}/api/trpc/users.listUsers`, {
+        const response = await client.get(`${EASYPANEL_URL}/api/rpc/users.listUsers`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 

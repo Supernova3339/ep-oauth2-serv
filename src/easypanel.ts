@@ -14,7 +14,7 @@ if (debug) {
 }
 
 export async function epTrpc<T>(procedure: string): Promise<T | null> {
-    const url = `${EASYPANEL_URL}/api/trpc/${procedure}`;
+    const url = `${EASYPANEL_URL}/api/rpc/${procedure}`;
     try {
         const res = await fetch(url, { headers: BASE_HEADERS });
         const body = await res.json();
@@ -28,7 +28,7 @@ export async function epTrpc<T>(procedure: string): Promise<T | null> {
 }
 
 export async function epTrpcPost<T>(procedure: string, data: unknown): Promise<T | null> {
-    const url = `${EASYPANEL_URL}/api/trpc/${procedure}`;
+    const url = `${EASYPANEL_URL}/api/rpc/${procedure}`;
     try {
         const res = await fetch(url, {
             method: 'POST',
@@ -46,7 +46,7 @@ export async function epTrpcPost<T>(procedure: string, data: unknown): Promise<T
 }
 
 export async function epTrpcWithToken<T>(procedure: string, token: string): Promise<T | null> {
-    const url = `${EASYPANEL_URL}/api/trpc/${procedure}?input=${encodeURIComponent(JSON.stringify({ json: null, meta: { values: ['undefined'], v: 1 } }))}`;
+    const url = `${EASYPANEL_URL}/api/rpc/${procedure}?input=${encodeURIComponent(JSON.stringify({ json: null, meta: { values: ['undefined'], v: 1 } }))}`;
     try {
         const res = await fetch(url, {
             headers: { ...BASE_HEADERS, Authorization: token },
