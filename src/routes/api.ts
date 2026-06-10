@@ -8,8 +8,8 @@ const router = Router();
 
 router.get('/api/branding', async (_req: Request, res: Response) => {
     const [iface, links] = await Promise.all([
-        epTrpc<{ darkLogo?: string | null; lightLogo?: string | null; logomark?: string | null }>('branding.getInterfaceSettingsPublic'),
-        epTrpc<{ hideOtherLinks?: boolean }>('branding.getLinksSettings'),
+        epTrpc<{ darkLogo?: string | null; lightLogo?: string | null; logomark?: string | null }>('branding/getInterfaceSettingsPublic'),
+        epTrpc<{ hideOtherLinks?: boolean }>('branding/getLinksSettings'),
     ]);
     return res.json({
         darkLogo: iface?.darkLogo ?? null,

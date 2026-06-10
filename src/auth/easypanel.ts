@@ -20,13 +20,13 @@ export async function validateEasypanelCredentials(
         if (code) (payload.json as Record<string, unknown>).code = code;
 
         const response = await client.post(
-            `${EASYPANEL_URL}/api/rpc/auth.login`,
+            `${EASYPANEL_URL}/api/rpc/auth/login`,
             payload,
             { headers: { 'Content-Type': 'application/json' } }
         );
 
-        const data = response.data?.result?.data?.json;
-        console.log('[easypanel] auth.login response:', JSON.stringify(response.data, (key, value) => key === 'token' ? '[redacted]' : value));
+        const data = response.data?.json;
+        console.log('[easypanel] auth/login response:', JSON.stringify(response.data, (key, value) => key === 'token' ? '[redacted]' : value));
 
         if (data?.twoFactorEnabled === true) {
             return { success: false, twoFactorRequired: true };
@@ -42,8 +42,9 @@ export async function validateEasypanelCredentials(
     } catch (error) {
         if (axios.isAxiosError(error) && error.response) {
             const responseData = error.response.data;
-            console.log('[easypanel] auth.login error response:', error.response.status, JSON.stringify(responseData));
+            console.log('[easypanel] auth/login error response:', error.response.status, JSON.stringify(responseData));
             let errorMessage = responseData?.error?.json?.message
+                || responseData?.error?.message
                 || responseData?.message
                 || (typeof responseData === 'string' ? responseData : 'Authentication failed');
 
@@ -74,11 +75,11 @@ export async function getUserInfo(token: string): Promise<EasypanelUser | null> 
 
 export async function listUsers(token: string): Promise<EasypanelUser[] | null> {
     try {
-        const response = await client.get(`${EASYPANEL_URL}/api/rpc/users.listUsers`, {
+        const response = await client.get(`${EASYPANEL_URL}/api/rpc/users/listUsers`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        return response.data?.result?.data?.json?.users ?? null;
+        return response.data?.json?.users ?? null;
     } catch (error) {
         console.error('Error listing users:', error);
         return null;

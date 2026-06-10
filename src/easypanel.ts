@@ -14,13 +14,13 @@ if (debug) {
 }
 
 export async function epTrpc<T>(procedure: string): Promise<T | null> {
-    const url = `${EASYPANEL_URL}/api/rpc/${procedure}`;
+    const url = `${EASYPANEL_URL}/api/rpc/${procedure.replace(/\./g, '/')}`;
     try {
         const res = await fetch(url, { headers: BASE_HEADERS });
         const body = await res.json();
         if (debug) console.log(`[epTrpc] ${procedure} (${res.status}):`, JSON.stringify(body, null, 2));
         if (!res.ok) return null;
-        return (body as { result?: { data?: { json?: T } } })?.result?.data?.json ?? null;
+        return (body as { json?: T })?.json ?? null;
     } catch (err) {
         if (debug) console.error(`[epTrpc] ${procedure} failed:`, err);
         return null;
@@ -28,7 +28,7 @@ export async function epTrpc<T>(procedure: string): Promise<T | null> {
 }
 
 export async function epTrpcPost<T>(procedure: string, data: unknown): Promise<T | null> {
-    const url = `${EASYPANEL_URL}/api/rpc/${procedure}`;
+    const url = `${EASYPANEL_URL}/api/rpc/${procedure.replace(/\./g, '/')}`;
     try {
         const res = await fetch(url, {
             method: 'POST',
@@ -38,7 +38,7 @@ export async function epTrpcPost<T>(procedure: string, data: unknown): Promise<T
         const body = await res.json();
         if (debug) console.log(`[epTrpc] POST ${procedure} (${res.status}):`, JSON.stringify(body, null, 2));
         if (!res.ok) return null;
-        return (body as { result?: { data?: { json?: T } } })?.result?.data?.json ?? null;
+        return (body as { json?: T })?.json ?? null;
     } catch (err) {
         if (debug) console.error(`[epTrpc] POST ${procedure} failed:`, err);
         return null;
@@ -46,7 +46,7 @@ export async function epTrpcPost<T>(procedure: string, data: unknown): Promise<T
 }
 
 export async function epTrpcWithToken<T>(procedure: string, token: string): Promise<T | null> {
-    const url = `${EASYPANEL_URL}/api/rpc/${procedure}?input=${encodeURIComponent(JSON.stringify({ json: null, meta: { values: ['undefined'], v: 1 } }))}`;
+    const url = `${EASYPANEL_URL}/api/rpc/${procedure.replace(/\./g, '/')}?input=${encodeURIComponent(JSON.stringify({ json: null, meta: { values: ['undefined'], v: 1 } }))}`;
     try {
         const res = await fetch(url, {
             headers: { ...BASE_HEADERS, Authorization: token },
@@ -54,7 +54,7 @@ export async function epTrpcWithToken<T>(procedure: string, token: string): Prom
         const body = await res.json();
         if (debug) console.log(`[epTrpc] ${procedure} (${res.status}):`, JSON.stringify(body, null, 2));
         if (!res.ok) return null;
-        return (body as { result?: { data?: { json?: T } } })?.result?.data?.json ?? null;
+        return (body as { json?: T })?.json ?? null;
     } catch (err) {
         if (debug) console.error(`[epTrpc] ${procedure} failed:`, err);
         return null;
