@@ -26,6 +26,7 @@ export async function validateEasypanelCredentials(
         );
 
         const data = response.data?.result?.data?.json;
+        console.log('[easypanel] auth.login response:', JSON.stringify(response.data, (key, value) => key === 'token' ? '[redacted]' : value));
 
         if (data?.twoFactorEnabled === true) {
             return { success: false, twoFactorRequired: true };
@@ -41,6 +42,7 @@ export async function validateEasypanelCredentials(
     } catch (error) {
         if (axios.isAxiosError(error) && error.response) {
             const responseData = error.response.data;
+            console.log('[easypanel] auth.login error response:', error.response.status, JSON.stringify(responseData));
             let errorMessage = responseData?.error?.json?.message
                 || responseData?.message
                 || (typeof responseData === 'string' ? responseData : 'Authentication failed');
