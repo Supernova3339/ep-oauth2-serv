@@ -6,7 +6,7 @@ export default defineConfig({
   root: 'frontend',
   build: {
     outDir: '../public',
-    emptyOutDir: true,
+    emptyOutDir: false,
   },
   server: {
     port: 3000,

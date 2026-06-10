@@ -1,3 +1,4 @@
+
 FROM node:24-alpine AS builder
 
 WORKDIR /app
@@ -24,6 +25,7 @@ RUN npm ci --production
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/views ./views
+COPY --from=builder /app/public ./public
 
 # Create data directory for LMDB
 RUN mkdir -p data
