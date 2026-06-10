@@ -26,7 +26,7 @@ export async function validateEasypanelCredentials(
         );
 
         const data = response.data?.json;
-        console.log('[easypanel] auth/login response:', JSON.stringify(response.data, (key, value) => key === 'token' ? '[redacted]' : value));
+        // console.log('[easypanel] auth/login response:', JSON.stringify(response.data, (key, value) => key === 'token' ? '[redacted]' : value));
 
         if (data?.twoFactorEnabled === true) {
             return { success: false, twoFactorRequired: true };
