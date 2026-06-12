@@ -1,61 +1,49 @@
-# Easypanel OAuth2 Server Example Clients
+# Examples
 
-This directory contains example clients for interacting with the Easypanel OAuth2 Server.
-
-## Device Authorization Flow Demo
-
-The `device-client.ts` file demonstrates how to use the Device Authorization Grant flow to authenticate with the OAuth2 server from a device with limited input capabilities, such as a CLI application, smart TV, or IoT device.
-
-### Prerequisites
-
-- Node.js 14 or higher
-- npm or yarn
-
-### Installation
+## Setup
 
 ```bash
-# Install dependencies
 npm install
 ```
 
-### Running the Device Authorization Demo
+## Device Authorization Flow
+
+CLI demo using RFC 8628. Opens a browser for the user to approve, then polls until authorized.
 
 ```bash
-# Run using ts-node
-npm run device-demo
-
-# Or build and run the JavaScript version
-npm run build
-npm run device-demo-js
+npm run device
 ```
 
-## Flow Explanation
+Requires a `test-client` registered on the server (created automatically in development mode).
 
-1. The client initiates the device authorization flow by making a request to the `/oauth/device` endpoint.
-2. The server returns a device code, user code, and verification URL.
-3. The client displays the user code and opens the verification URL in a browser.
-4. The user enters the code in the browser and authorizes the device.
-5. Meanwhile, the client polls the token endpoint until authorization is complete or an error occurs.
-6. Upon successful authorization, the client receives access and refresh tokens.
-7. The client uses the access token to fetch user information from the `/oauth/userinfo` endpoint.
+## OpenID Connect (Authorization Code)
 
-## Customization
+A minimal Express app demonstrating the authorization code + OIDC flow.
 
-You can customize the following parameters in the client:
+```bash
+npm run openid
+```
 
-- `SERVER_URL`: The URL of the OAuth2 server
-- `CLIENT_ID`: The client ID registered with the OAuth2 server
-- `CLIENT_SECRET`: The client secret
+Register the client first using the admin UI or the API:
 
-## Error Handling
+```bash
+curl -X POST http://localhost:3000/api/clients \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "OpenID Connect Example",
+    "redirectUris": ["http://localhost:8080/callback"],
+    "allowedScopes": ["openid", "profile", "email"],
+    "persistent": true
+  }'
+```
 
-The client implements proper error handling according to RFC 8628:
+Then set `CLIENT_ID` and `CLIENT_SECRET` in `openid-client.ts` to match.
 
-- `authorization_pending`: The user has not yet completed the authorization
-- `slow_down`: The client is polling too frequently and should increase the interval
-- `expired_token`: The device code has expired
-- `access_denied`: The user denied the authorization request
+## Create a Persistent Client (curl)
 
-## TypeScript Types
+Edit `create-persistent-client.sh` with your API key, then:
 
-The client includes TypeScript type definitions for all responses and parameters.
+```bash
+bash create-persistent-client.sh
+```

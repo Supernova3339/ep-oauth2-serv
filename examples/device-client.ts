@@ -1,25 +1,24 @@
 #!/usr/bin/env ts-node
 
-/**
- * OAuth 2.0 Device Authorization Grant Demo Client
- *
- * This is a simple demonstration of using the Device Authorization Grant
- * from a command-line application.
- *
- * Usage:
- *   npm run device-demo
- */
-
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 import open from 'open';
+import fs from 'fs';
+import path from 'path';
 
-// Configuration
-const SERVER_URL = 'http://localhost:3000';
-const CLIENT_ID = 'test-client';
-const CLIENT_SECRET = 'test-secret';
+const SERVER_URL = process.env.SERVER_URL ?? 'http://localhost:3000';
 
-// Types
-interface DeviceAuthorizationResponse {
+function loadConfig() {
+    try {
+        const raw = fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8');
+        return JSON.parse(raw).device as { id: string; secret: string };
+    } catch {
+        return { id: 'test-client', secret: 'test-secret' };
+    }
+}
+
+const { id: CLIENT_ID, secret: CLIENT_SECRET } = loadConfig();
+
+interface DeviceAuthResponse {
     device_code: string;
     user_code: string;
     verification_uri: string;
@@ -28,165 +27,89 @@ interface DeviceAuthorizationResponse {
     interval: number;
 }
 
-export interface TokenResponse {
+interface TokenResponse {
     access_token: string;
     token_type: string;
     expires_in: number;
     refresh_token: string;
-    id_token?: string; // OpenID Connect ID token
+    id_token?: string;
     scope: string;
 }
 
-interface UserInfoResponse {
+interface UserInfo {
     sub: string;
     email?: string;
     name?: string;
-    [key: string]: any;
 }
 
-interface ErrorResponse {
-    error: string;
-    error_description?: string;
+async function requestDeviceCode(): Promise<DeviceAuthResponse> {
+    const body = new URLSearchParams({ client_id: CLIENT_ID, scope: 'profile email' });
+    const { data } = await axios.post<DeviceAuthResponse>(`${SERVER_URL}/oauth/device`, body.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+    return data;
 }
 
-// Main function
-async function main(): Promise<void> {
-    try {
-        console.log('OAuth 2.0 Device Authorization Grant Demo\n');
-
-        // Step 1: Request device code
-        console.log('Requesting device code...');
-        const deviceAuthResponse = await requestDeviceCode();
-
-        console.log('\nDevice authorization initiated!');
-        console.log(`User code: ${deviceAuthResponse.user_code}`);
-        console.log(`Verification URL: ${deviceAuthResponse.verification_uri}`);
-
-        // Step 2: Open the browser for the user
-        console.log('\nOpening browser for authentication...');
-        await open(deviceAuthResponse.verification_uri_complete);
-
-        // Step 3: Poll for token
-        console.log('\nWaiting for authorization...\n');
-        const token = await pollForToken(
-            deviceAuthResponse.device_code,
-            deviceAuthResponse.interval
-        );
-
-        // Step 4: Use the token to access the API
-        console.log('Authorization successful!');
-        console.log(`Access token: ${token.access_token.substring(0, 10)}...`);
-        console.log(`Refresh token: ${token.refresh_token.substring(0, 10)}...`);
-        console.log(`Token expires in: ${token.expires_in} seconds`);
-        console.log(`Scopes: ${token.scope}`);
-
-        // Get user info
-        console.log('\nFetching user info...');
-        const userInfo = await getUserInfo(token.access_token);
-        console.log('User info:', userInfo);
-
-        console.log('\nDevice flow completed successfully!');
-    } catch (error) {
-        if (error instanceof Error) {
-            console.error('Error:', error.message);
-            if (axios.isAxiosError(error) && error.response) {
-                console.error('Server response:', error.response.data);
-            }
-        } else {
-            console.error('Unknown error:', error);
-        }
-        process.exit(1);
-    }
-}
-
-// Request device code
-async function requestDeviceCode(): Promise<DeviceAuthorizationResponse> {
-    const response = await axios.post<DeviceAuthorizationResponse>(
-        `${SERVER_URL}/oauth/device`,
-        {
-            client_id: CLIENT_ID,
-            scope: 'profile email'
-        }
-    );
-
-    return response.data;
-}
-
-// Poll for token
 async function pollForToken(deviceCode: string, interval: number): Promise<TokenResponse> {
-    // Add a small buffer to the interval to avoid rate limiting
-    let pollInterval = (interval || 5) * 1000;
+    let pollMs = (interval || 5) * 1000;
+    const body = new URLSearchParams({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        device_code: deviceCode,
+    });
 
-    // Poll until we get a token or an error
     while (true) {
         try {
-            const response = await axios.post<TokenResponse>(
-                `${SERVER_URL}/oauth/token`,
-                {
-                    client_id: CLIENT_ID,
-                    client_secret: CLIENT_SECRET,
-                    grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-                    device_code: deviceCode
-                }
-            );
-
-            // If we get here, we have a token
-            return response.data;
-        } catch (error) {
-            if (axios.isAxiosError(error) && error.response?.data) {
-                const errorData = error.response.data as ErrorResponse;
-
-                // Handle error codes according to RFC 8628
-                switch (errorData.error) {
-                    case 'authorization_pending':
-                        // This is expected, user hasn't approved yet
-                        process.stdout.write('.');
-                        break;
-
-                    case 'slow_down':
-                        // We're polling too fast, increase the interval
-                        process.stdout.write('s');
-                        pollInterval += 5000;
-                        break;
-
-                    case 'expired_token':
-                        throw new Error('The device code has expired. Please try again.');
-
-                    case 'access_denied':
-                        throw new Error('The user denied the authorization request.');
-
-                    default:
-                        throw new Error(
-                            `Authentication error: ${errorData.error}: ${errorData.error_description || ''}`
-                        );
-                }
+            const { data } = await axios.post<TokenResponse>(`${SERVER_URL}/oauth/token`, body.toString(), {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            });
+            return data;
+        } catch (err) {
+            if (axios.isAxiosError(err) && err.response?.data) {
+                const { error } = err.response.data as { error: string };
+                if (error === 'authorization_pending') process.stdout.write('.');
+                else if (error === 'slow_down') pollMs += 5000;
+                else if (error === 'expired_token') throw new Error('Device code expired.');
+                else if (error === 'access_denied') throw new Error('User denied authorization.');
+                else throw err;
             } else {
-                // Unexpected error
-                throw error;
+                throw err;
             }
         }
-
-        // Wait for the poll interval
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        await new Promise(r => setTimeout(r, pollMs));
     }
 }
 
-// Get user info
-async function getUserInfo(accessToken: string): Promise<UserInfoResponse> {
-    const response = await axios.get<UserInfoResponse>(
-        `${SERVER_URL}/oauth/userinfo`,
-        {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`
-            }
-        }
-    );
-
-    return response.data;
+async function getUserInfo(accessToken: string): Promise<UserInfo> {
+    const { data } = await axios.get<UserInfo>(`${SERVER_URL}/oauth/userinfo`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    return data;
 }
 
-// Run the main function
-main().catch(error => {
-    console.error('Unhandled error:', error);
+async function main() {
+    console.log(`Device Authorization Flow  [${CLIENT_ID}]\n`);
+
+    const deviceAuth = await requestDeviceCode();
+    console.log(`User code:        ${deviceAuth.user_code}`);
+    console.log(`Verification URL: ${deviceAuth.verification_uri}`);
+    console.log('\nOpening browser...');
+    await open(deviceAuth.verification_uri_complete);
+
+    console.log('\nPolling for authorization');
+    const token = await pollForToken(deviceAuth.device_code, deviceAuth.interval);
+
+    console.log('\nAuthorized.');
+    console.log(`Access token:  ${token.access_token.slice(0, 12)}...`);
+    console.log(`Expires in:    ${token.expires_in}s`);
+    console.log(`Scopes:        ${token.scope}`);
+
+    const userInfo = await getUserInfo(token.access_token);
+    console.log('\nUser info:', userInfo);
+}
+
+main().catch(err => {
+    console.error(err instanceof Error ? err.message : err);
     process.exit(1);
 });
