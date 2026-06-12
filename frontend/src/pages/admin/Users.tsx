@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box, Button, Center, Flex, Spinner, Stack, Text,
 } from '@chakra-ui/react'
 import { Layout } from '../../components/Layout'
 import { Card } from '../../components/Card'
 import { Modal, Dialog } from '../../components/Modal'
-import { CopyField } from '../../components/CopyButton'
+import { CopyButton } from '../../components/CopyButton'
 
 interface EpUser {
   id: string
@@ -27,6 +27,63 @@ const BADGE = (on: boolean) => ({
   border: `1px solid ${on ? '#1a4a2a' : '#2a2a2a'}`,
 })
 
+
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+    </svg>
+  ) : (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  )
+}
+
+function TokenField({ value, onRevoke }: { value: string; onRevoke: () => void }) {
+  const [revealed, setRevealed] = useState(false)
+  return (
+    <Flex align="center" gap={2} bg="#161616" border="1px solid #2a2a2a" rounded="lg" px={3} py={1.5} maxW="420px">
+      <Text
+        flex={1} color="#aaa" fontSize="12px" fontFamily="mono"
+        overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap"
+        filter={revealed ? 'none' : 'blur(4px)'}
+        userSelect={revealed ? 'auto' : 'none'}
+        transition="filter 0.15s"
+      >
+        {value}
+      </Text>
+      <Box
+        as="button" onClick={() => setRevealed(r => !r)}
+        color="#666" _hover={{ color: '#aaa' }} cursor="pointer" flexShrink={0}
+        display="flex" alignItems="center"
+        aria-label={revealed ? 'Hide token' : 'Reveal token'}
+      >
+        <EyeIcon open={revealed} />
+      </Box>
+      <CopyButton value={value} />
+      <Box
+        as="button" onClick={onRevoke}
+        color="#666" _hover={{ color: 'red.400' }} cursor="pointer" flexShrink={0}
+        display="flex" alignItems="center"
+        aria-label="Revoke token"
+      >
+        <TrashIcon />
+      </Box>
+    </Flex>
+  )
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -63,7 +120,6 @@ export default function UsersPage() {
 
   const [createForm, setCreateForm] = useState({ email: '', password: '', admin: false })
   const [editForm, setEditForm] = useState({ password: '', admin: false })
-  const [generatedToken, setGeneratedToken] = useState<{ email: string; token: string } | null>(null)
 
   async function load() {
     try {
@@ -137,9 +193,7 @@ export default function UsersPage() {
   }
 
   async function handleGenerateToken(user: EpUser) {
-    const res = await fetch(`/api/users/${user.id}/generate-api-token`, { method: 'POST' })
-    const data = await res.json()
-    if (res.ok && data.apiToken) setGeneratedToken({ email: user.email, token: data.apiToken })
+    await fetch(`/api/users/${user.id}/generate-api-token`, { method: 'POST' })
     load()
   }
 
@@ -185,6 +239,7 @@ export default function UsersPage() {
                   <Box {...BADGE(u.admin)}>{u.admin ? 'Admin' : 'User'}</Box>
                   {u.twoFactorEnabled && <Box {...BADGE(true)}>2FA</Box>}
                 </Flex>
+                {u.apiToken && <TokenField value={u.apiToken} onRevoke={() => handleRevokeToken(u)} />}
                 <Flex gap={1} flexShrink={0}>
                   <Button
                     size="xs" variant="ghost" color="gray.500" _hover={{ color: 'gray.300', bg: '#1e1e1e' }}
@@ -192,11 +247,7 @@ export default function UsersPage() {
                   >
                     Edit
                   </Button>
-                  {u.apiToken ? (
-                    <Button size="xs" variant="ghost" color="gray.500" _hover={{ color: 'gray.300', bg: '#1e1e1e' }} onClick={() => handleRevokeToken(u)}>
-                      Revoke Token
-                    </Button>
-                  ) : (
+                  {!u.apiToken && (
                     <Button size="xs" variant="ghost" color="gray.500" _hover={{ color: 'gray.300', bg: '#1e1e1e' }} onClick={() => handleGenerateToken(u)}>
                       Gen Token
                     </Button>
@@ -285,19 +336,6 @@ export default function UsersPage() {
                 Cancel
               </Button>
             </Flex>
-          </Stack>
-        </Dialog.Body>
-      </Modal>
-
-      {/* API Token */}
-      <Modal open={!!generatedToken} onClose={() => setGeneratedToken(null)} title="API Token Generated">
-        <Dialog.Body px={6} py={5}>
-          <Stack gap={4}>
-            <Box bg="#0a1a10" border="1px solid #1a4a2a" rounded="lg" px={4} py={3}>
-              <Text color="green.300" fontSize="sm">Token generated for <Text as="span" fontWeight={600} color="white">{generatedToken?.email}</Text>. Save it now — it won't be shown again.</Text>
-            </Box>
-            <CopyField label="API Token" value={generatedToken?.token ?? ''} />
-            <Button bg="#0BA864" color="white" fontWeight={600} h={10} _hover={{ bg: '#099558' }} onClick={() => setGeneratedToken(null)}>Done</Button>
           </Stack>
         </Dialog.Body>
       </Modal>

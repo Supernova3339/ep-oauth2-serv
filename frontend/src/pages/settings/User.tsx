@@ -78,7 +78,7 @@ function TextInput({ value, onChange, type = 'text', readOnly, placeholder }: {
 const CARD_PROPS = { flex: 1, minW: '300px', maxW: '520px' }
 
 export default function UserSettings() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
 
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -135,6 +135,7 @@ export default function UserSettings() {
       const data = await res.json()
       if (!res.ok) { setTwoFaError(data.error || 'Invalid code'); return }
       setQr(null); setPinValue([]); setTwoFaSuccess('Two-factor authentication enabled.')
+      if (user) setUser({ ...user, twoFactorEnabled: true })
     } catch { setTwoFaError('An error occurred') }
     finally { setTwoFaLoading(false) }
   }
@@ -146,6 +147,7 @@ export default function UserSettings() {
       const data = await res.json()
       if (!res.ok) { setTwoFaError(data.error || 'Failed'); return }
       setTwoFaSuccess('Two-factor authentication disabled.')
+      if (user) setUser({ ...user, twoFactorEnabled: false })
     } catch { setTwoFaError('An error occurred') }
     finally { setTwoFaLoading(false) }
   }
@@ -240,6 +242,23 @@ export default function UserSettings() {
                     </Flex>
                   </Stack>
                 </Flex>
+              </Stack>
+            ) : user?.twoFactorEnabled ? (
+              <Stack gap={4}>
+                <Text color="#0BA864" fontSize="13px">
+                  Two-factor authentication is enabled on your account.
+                </Text>
+                <Box>
+                  <Button
+                    bg="#1a1a1a" border="1px solid #2a2a2a" color="white" fontWeight={600}
+                    h={10} px={6} rounded="lg"
+                    _hover={{ bg: '#2a1414', borderColor: '#3a1515', color: 'red.400' }}
+                    loading={twoFaLoading}
+                    onClick={disable2fa}
+                  >
+                    Disable Two Factor Authentication
+                  </Button>
+                </Box>
               </Stack>
             ) : (
               <Stack gap={4}>

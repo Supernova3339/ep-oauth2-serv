@@ -23,8 +23,11 @@ const db = {
     clients: rootDb.openDB<Client>({ name: 'clients', encoding: 'json', compression: true }),
     authorizationCodes: rootDb.openDB<AuthorizationCode>({ name: 'authorizationCodes', encoding: 'json', compression: true }),
     tokens: rootDb.openDB<Token>({ name: 'tokens', encoding: 'json', compression: true }),
-    refreshTokens: rootDb.openDB<string>({ name: 'refreshTokens', encoding: 'json' })
+    refreshTokens: rootDb.openDB<string>({ name: 'refreshTokens', encoding: 'json' }),
+    sessions: rootDb.openDB<{ session: unknown; expires: number }>({ name: 'sessions', encoding: 'json', compression: true })
 };
+
+export const sessionsDb = db.sessions;
 
 function generateRandomString(length: number): string {
     return crypto.randomBytes(length).toString('hex').slice(0, length);
@@ -194,6 +197,10 @@ export function cleanupExpiredItems(): void {
             db.refreshTokens.removeSync(value.refreshToken);
             db.tokens.removeSync(key);
         }
+    }
+    const nowMs = Date.now();
+    for (const { key, value } of db.sessions.getRange()) {
+        if (value.expires < nowMs) db.sessions.removeSync(key);
     }
 }
 

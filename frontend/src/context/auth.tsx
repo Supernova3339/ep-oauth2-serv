@@ -6,6 +6,7 @@ interface User {
   name?: string
   admin?: boolean
   isAdmin?: boolean
+  twoFactorEnabled?: boolean
 }
 
 interface AuthContextValue {

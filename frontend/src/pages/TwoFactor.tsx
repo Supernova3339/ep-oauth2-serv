@@ -86,6 +86,8 @@ export default function TwoFactor() {
               onValueChange={({ value }) => setPinValue(value)}
               otp
               autoFocus
+              w="full"
+              justifyContent="center"
             >
               <PinInputHiddenInput />
               <PinInputControl>

@@ -38,7 +38,7 @@ export async function epTrpcPost<T>(procedure: string, data: unknown): Promise<T
         const body = await res.json();
         if (debug) console.log(`[epTrpc] POST ${procedure} (${res.status}):`, JSON.stringify(body, null, 2));
         if (!res.ok) return null;
-        return (body as { json?: T })?.json ?? null;
+        return ((body as { json?: T })?.json ?? {}) as T;
     } catch (err) {
         if (debug) console.error(`[epTrpc] POST ${procedure} failed:`, err);
         return null;

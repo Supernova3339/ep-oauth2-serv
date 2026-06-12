@@ -54,6 +54,7 @@ export interface EasypanelUser {
     id: string;
     email: string;
     admin: boolean;
+    twoFactorEnabled: boolean;
 }
 
 export interface LoginResponse {

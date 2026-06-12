@@ -167,9 +167,9 @@ router.delete('/api/users/:id', requireAuthOrApiKey, requireAdminOrApiKey, async
 });
 
 router.post('/api/users/:id/generate-api-token', requireAuthOrApiKey, requireAdminOrApiKey, async (req: Request, res: Response) => {
-    const result = await epTrpcPost<{ apiToken: string }>('users.generateApiToken', { id: req.params.id });
+    const result = await epTrpcPost('users.generateApiToken', { id: req.params.id });
     if (!result) return res.status(500).json({ success: false, error: 'Failed to generate API token' });
-    return res.json({ success: true, apiToken: (result as { apiToken?: string }).apiToken });
+    return res.json({ success: true });
 });
 
 router.post('/api/users/:id/revoke-api-token', requireAuthOrApiKey, requireAdminOrApiKey, async (req: Request, res: Response) => {
@@ -199,13 +199,15 @@ router.post('/api/2fa/enable', requireAuthOrApiKey, async (req: Request, res: Re
     const { code } = req.body as { code: string };
     const result = await epTrpcPost('twoFactor.enable', { code });
     if (!result) return res.status(500).json({ success: false, error: 'Invalid code' });
-    return res.json({ success: true });
+    if (req.session.user) req.session.user.twoFactorEnabled = true;
+    return req.session.save(() => res.json({ success: true }));
 });
 
-router.post('/api/2fa/disable', requireAuthOrApiKey, async (_req: Request, res: Response) => {
+router.post('/api/2fa/disable', requireAuthOrApiKey, async (req: Request, res: Response) => {
     const result = await epTrpcPost('twoFactor.disable', {});
     if (!result) return res.status(500).json({ success: false, error: 'Failed to disable 2FA' });
-    return res.json({ success: true });
+    if (req.session.user) req.session.user.twoFactorEnabled = false;
+    return req.session.save(() => res.json({ success: true }));
 });
 
 export default router;

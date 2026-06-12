@@ -8,6 +8,7 @@ import authRoutes from './routes/auth';
 import oauthRoutes from './routes/oauth';
 import apiRoutes from './routes/api';
 import * as storage from './storage/lmdb';
+import { LmdbSessionStore } from './storage/sessionStore';
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(
     session({
+        store: new LmdbSessionStore(),
         secret: SESSION_SECRET,
         resave: false,
         saveUninitialized: false,

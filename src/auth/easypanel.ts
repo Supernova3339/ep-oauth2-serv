@@ -71,9 +71,14 @@ export async function validateEasypanelCredentials(
 
 export async function getUserInfo(token: string): Promise<EasypanelUser | null> {
     try {
-        const userData = await epTrpcWithToken<{ id: string; email: string; admin: boolean }>('auth.getUser', token);
+        const userData = await epTrpcWithToken<{ id: string; email: string; admin: boolean; twoFactorEnabled: boolean }>('auth.getUser', token);
         if (!userData?.id) return null;
-        return { id: userData.id, email: userData.email, admin: userData.admin ?? false };
+        return {
+            id: userData.id,
+            email: userData.email,
+            admin: userData.admin ?? false,
+            twoFactorEnabled: userData.twoFactorEnabled ?? false,
+        };
     } catch (error) {
         console.error('Error fetching user info:', error);
         return null;
