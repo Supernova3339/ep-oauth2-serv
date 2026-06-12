@@ -63,7 +63,7 @@ export default function Login() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Invalid credentials'); await refreshCsrf(); return }
-      if (data.twoFactorRequired) { navigate('/two-factor', { state: { returnTo } }); return }
+      if (data.twoFactorRequired) { await refreshCsrf(); navigate('/two-factor', { state: { returnTo } }); return }
       setUser(data.user)
       window.location.href = returnTo
     } catch {
